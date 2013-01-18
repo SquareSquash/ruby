@@ -506,7 +506,26 @@ module Squash
                    head_file = File.join(configuration(:repository_root), '.git', 'HEAD')
                    if File.exist?(head_file)
                      rev = File.read(head_file).chomp.strip
-                     rev = File.read(File.join(configuration(:repository_root), '.git', $1)).chomp.strip if rev =~ /^ref: (.+?)$/
+                     if rev =~ /^ref: (.+?)$/
+                       rev      = nil # in case we need to shell
+                       ref      = $1
+                       ref_file = File.join(configuration(:repository_root), '.git', ref)
+                       if File.exist?(ref_file)
+                         rev = File.read(ref_file).chomp.strip
+                       elsif File.exist?(File.join(configuration(:repository_root), '.git', 'packed-refs'))
+                         revs = File.join(configuration(:repository_root), '.git', 'packed-refs')
+                         File.open(revs) do |f|
+                           f.each_line do |line|
+                             next if line[0, 1] == '#'
+                             next if line[0, 1] == '^'
+                             next unless line.chomp[-(ref.length)..-1] == ref
+                             rev = line[0, 40]
+                             break
+                           end
+                         end
+                       end
+                     end
+                     rev ||= `git rev-parse #{ref}`.strip # shell as a last resort
                      rev
                    else
                      raise "You must set the :revision_file configuration if the code is not running in a Git checkout"

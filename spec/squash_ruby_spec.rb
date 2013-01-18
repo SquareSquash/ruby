@@ -551,4 +551,66 @@ describe Squash::Ruby do
       Squash::Ruby.record "foobar"
     end
   end
+
+  describe ".current_revision" do
+    before :each do
+      FakeFS.activate!
+      FakeFS::FileSystem.clear
+    end
+    after(:each) { FakeFS.deactivate! }
+
+    context "[revision file specified]" do
+      it "should return the contents of the revision file" do
+        File.open('test_file', 'w') { |f| f.puts 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
+        Squash::Ruby.configure :revision_file => 'test_file'
+        Squash::Ruby.current_revision.should eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+      end
+
+      it "should raise an exception for an improperly-formatted revision file" do
+        File.open('test_file', 'w') { |f| f.puts 'halp!' }
+        Squash::Ruby.configure :revision_file => 'test_file'
+        lambda { Squash::Ruby.current_revision }.should raise_error(/Unknown Git revision/)
+      end
+    end
+
+    context "[no revision file specified]" do
+      it "should return the HEAD if it is a commit" do
+        FileUtils.mkdir_p '.git'
+        File.open('.git/HEAD', 'w') { |f| f.puts 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
+        Squash::Ruby.current_revision.should eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+      end
+
+      it "should return the contents of the ref file if HEAD is a ref" do
+        FileUtils.mkdir_p '.git/refs/heads'
+        File.open('.git/HEAD', 'w') { |f| f.puts 'ref: refs/heads/branch' }
+        File.open('.git/refs/heads/branch', 'w') { |f| f.puts 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
+        Squash::Ruby.current_revision.should eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+      end
+
+      it "should search in packed-refs if HEAD is a ref" do
+        FileUtils.mkdir_p '.git'
+        File.open('.git/HEAD', 'w') { |f| f.puts 'ref: refs/heads/branch' }
+        File.open('.git/packed-refs', 'w') do |f|
+          f.puts <<-REFS
+#cb586586d2882ebfb5e892c8fc558ada8d2faf95 refs/heads/branch
+^cb586586d2882ebfb5e892c8fc558ada8d2faf95
+cb586586d2882ebfb5e892c8fc558ada8d2faf95 refs/heads/branch
+cb586586d2882ebfb5e892c8fc558ada8d2faf96 refs/heads/other
+          REFS
+        end
+        Squash::Ruby.current_revision.should eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+      end
+
+      it "should use `git rev-parse` otherwise" do
+        FileUtils.mkdir_p '.git'
+        File.open('.git/HEAD', 'w') { |f| f.puts 'ref: refs/heads/unknown' }
+        Squash::Ruby.should_receive(:`).once.with('git rev-parse refs/heads/unknown').and_return('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+        Squash::Ruby.current_revision.should eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+      end
+
+      it "should raise an exception if not running in a Git repo" do
+        lambda { Squash::Ruby.current_revision }.should raise_error(/You must set the :revision_file configuration/)
+      end
+    end
+  end
 end
