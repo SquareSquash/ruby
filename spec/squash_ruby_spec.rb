@@ -263,11 +263,32 @@ describe Squash::Ruby do
         end
 
         it "should properly tokenize and normalize backtraces" do
-          @json['backtraces'].first[2].should eql(@exception.backtrace.map do |element|
-            file, line, method = element.split(':')
-            file.sub! /^#{Regexp.escape Dir.getwd}\//, ''
-            [file, line.to_i, method ? method.match(/in `(.+)'$/)[1] : nil]
-          end)
+          if defined?(JRuby)
+            @json['backtraces'].first[2].should eql(@exception.backtrace.map do |element|
+              result = []
+              file, line, method = element.split(':')
+              if file =~ /org\/jruby/ # jruby built-in file
+                result << '_JAVA_'
+                result << file.gsub('org/jruby/', '')
+              else # project file, strip out project dir from path
+                result << file.gsub("#{Dir.getwd}/", '')
+              end
+              result << line.to_i
+              result << if method # normalized method name
+                method.gsub(/in `(.+)'$/, '\1')
+              end
+              if file =~ /\.java$/ # add fully qualified Java class name
+                result << file.gsub('/', '.').gsub('.java', '')
+              end
+              result
+            end)
+          else
+            @json['backtraces'].first[2].should eql(@exception.backtrace.map do |element|
+              file, line, method = element.split(':')
+              file.sub! /^#{Regexp.escape Dir.getwd}\//, ''
+              [file, line.to_i, method ? method.match(/in `(.+)'$/)[1] : nil]
+            end)
+          end
         end
 
         it "should transmit information about the environment" do
