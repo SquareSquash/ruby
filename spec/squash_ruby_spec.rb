@@ -155,12 +155,21 @@ describe Squash::Ruby do
       before(:each) { Squash::Ruby.configure :disable_failsafe => true }
 
       it "should convert variables to complex value hashes" do
-        Squash::Ruby.valueify(/Hello, world!/).should eql("language"   => "ruby",
-                                                          "inspect"    => "/Hello, world!/",
-                                                          "yaml"       => "--- !ruby/regexp /Hello, world!/\n",
-                                                          "class_name" => "Regexp",
-                                                          "json"       => "\"(?-mix:Hello, world!)\"",
-                                                          "to_s"       => "(?-mix:Hello, world!)")
+        result = Squash::Ruby.valueify(/Hello, world!/)
+
+        yaml_result = result.delete('yaml')
+
+        if RUBY_VERSION =~ /^1.8/
+          yaml_result.should eql "--- !ruby/regexp /Hello, world!/\n"
+        else
+          yaml_result.should eql "--- !ruby/regexp /Hello, world!/\n...\n"
+        end
+
+        result.should eql("language"   => "ruby",
+                          "inspect"    => "/Hello, world!/",
+                          "class_name" => "Regexp",
+                          "json"       => "\"(?-mix:Hello, world!)\"",
+                          "to_s"       => "(?-mix:Hello, world!)")
       end
 
       it "should not convert JSON primitives" do
@@ -172,12 +181,23 @@ describe Squash::Ruby do
 
       it "should filter values" do
         Squash::Ruby.stub!(:value_filter).and_return('foo' => 'bar')
-        Squash::Ruby.valueify("hello" => "world").should eql({
+        result = Squash::Ruby.valueify("hello" => "world")
+
+        yaml_result = result.delete('yaml')
+        to_s_result = result.delete('to_s')
+
+        if RUBY_VERSION =~ /^1.8/
+          yaml_result.should eql "--- \nfoo: bar\n"
+          to_s_result.should eql "foobar"
+        else
+          yaml_result.should eql "---\nfoo: bar\n"
+          to_s_result.should eql "{\"foo\"=>\"bar\"}"
+        end
+
+        result.should eql({
             "inspect"=>"{\"foo\"=>\"bar\"}",
             "json"=>"{\"foo\":\"bar\"}",
-            "yaml"=>"--- \nfoo: bar\n",
             "language"=>"ruby",
-            "to_s"=>"foobar",
             "class_name"=>"Hash"})
       end
     end
