@@ -162,7 +162,11 @@ describe Squash::Ruby do
         if RUBY_VERSION =~ /^1.8/
           yaml_result.should eql "--- !ruby/regexp /Hello, world!/\n"
         else
-          yaml_result.should eql "--- !ruby/regexp /Hello, world!/\n...\n"
+          if defined?(JRuby)
+            yaml_result.should eql "--- !ruby/regexp '/Hello, world!/'\n"
+          else
+            yaml_result.should eql "--- !ruby/regexp /Hello, world!/\n...\n"
+          end
         end
 
         result.should eql("language"   => "ruby",
