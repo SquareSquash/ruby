@@ -433,12 +433,14 @@ module Squash
         instance.map { |i| valueify(i) }
       else
         filtered = value_filter(instance)
+        yaml = begin filtered.to_yaml; rescue Exception; nil end
+        json = begin filtered.to_json; rescue Exception; nil end
         {
             'language'   => 'ruby',
             'class_name' => filtered.class.to_s,
             'inspect'    => filtered.inspect,
-            'yaml'       => (filtered.to_yaml rescue nil),
-            'json'       => (filtered.to_json rescue nil),
+            'yaml'       => yaml,
+            'json'       => json,
             'to_s'       => (filtered.to_s rescue nil)
         }
       end
