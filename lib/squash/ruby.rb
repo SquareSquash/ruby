@@ -351,7 +351,11 @@ module Squash
       environment_data.merge(top_level_user_data).merge(
           'class_name'        => exception.class.to_s,
           'message'           => exception.to_s,
-          'backtraces'        => [["Active Thread/Fiber", true, prepare_backtrace(exception.backtrace)]],
+          'backtraces'        => [{
+                                      'name'      => "Active Thread/Fiber",
+                                      'faulted'   => true,
+                                      'backtrace' => prepare_backtrace(exception.backtrace)
+                                  }],
           'occurred_at'       => occurred,
           'revision'          => current_revision,
 
@@ -365,7 +369,11 @@ module Squash
           'parent_exceptions' => parents.nil? ? nil : parents.map do |parent|
             {'class_name'  => parent.class.to_s,
              'message'     => parent.to_s,
-             'backtraces'  => [["Active Thread/Fiber", true, prepare_backtrace(parent.backtrace)]],
+             'backtraces'  => [{
+                                   'name'      => "Active Thread/Fiber",
+                                   'faulted'   => true,
+                                   'backtrace' => prepare_backtrace(parent.backtrace)
+                               }],
              'association' => 'original_exception',
              'ivars'       => instance_variable_hash(parent)}
           end
@@ -377,7 +385,13 @@ module Squash
         bt.map do |element|
           if element =~ /^((?:[a-z0-9_$]+\.)*(?:[a-z0-9_$]+))\.(\w+)\((\w+.java):(\d+)\)$/i
             # special JRuby backtrace element of the form "org.jruby.RubyHash$27.visit(RubyHash.java:1646)"
-            ['_JAVA_', $3, $4.to_i, $2, $1]
+            {
+                'type'   => 'obfuscated',
+                'file'   => $3,
+                'line'   => $4.to_i,
+                'symbol' => $2,
+                'class'  => $1
+            }
           else
             if element.include?(' at ')
               method, fileline = element.split(' at ')
@@ -399,11 +413,21 @@ module Squash
 
             # it could still be a java backtrace, even if it's not the special format
             if file[-5, 5] == '.java'
-              ['_JAVA_', file.split('/').last, line, method, file.sub(/\.java$/, '').gsub('/', '.')]
+              {
+                  'type'   => 'obfuscated',
+                  'file'   => file.split('/').last,
+                  'line'   => line,
+                  'symbol' => method,
+                  'class'  => file.sub(/\.java$/, '').gsub('/', '.')
+              }
             else
               # ok now we're sure it's a ruby backtrace
               file.slice! 0, configuration(:project_root).length + 1 if file[0, configuration(:project_root).length + 1] == configuration(:project_root) + '/'
-              [file, line, method]
+              {
+                  'file'   => file,
+                  'line'   => line,
+                  'symbol' => method
+              }
             end
           end
         end
@@ -419,7 +443,11 @@ module Squash
             method = $1
           end
           method = nil if method && method.empty?
-          [file, line, method]
+          {
+              'file'   => file,
+              'line'   => line,
+              'symbol' => method
+          }
         end
       end
     end

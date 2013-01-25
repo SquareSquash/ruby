@@ -155,9 +155,11 @@ describe Squash::Ruby do
       before(:each) { Squash::Ruby.configure :disable_failsafe => true }
 
       it "should convert variables to complex value hashes" do
+        yaml = (defined?(JRuby) && RUBY_VERSION >= '1.9.0') ? "--- !ruby/regexp '/Hello, world!/'\n" : "--- !ruby/regexp /Hello, world!/\n"
+        yaml << "...\n" if RUBY_VERSION >= '1.9.0' && !defined?(JRuby)
         Squash::Ruby.valueify(/Hello, world!/).should eql("language"   => "ruby",
                                                           "inspect"    => "/Hello, world!/",
-                                                          "yaml"       => "--- !ruby/regexp /Hello, world!/\n",
+                                                          "yaml"       => yaml,
                                                           "class_name" => "Regexp",
                                                           "json"       => "\"(?-mix:Hello, world!)\"",
                                                           "to_s"       => "(?-mix:Hello, world!)")
@@ -172,12 +174,14 @@ describe Squash::Ruby do
 
       it "should filter values" do
         Squash::Ruby.stub!(:value_filter).and_return('foo' => 'bar')
+        tos = (RUBY_VERSION < '1.9.0') ? "foobar" : '{"foo"=>"bar"}'
+        yaml = (RUBY_VERSION < '1.9.0') ? "--- \nfoo: bar\n" : "---\nfoo: bar\n"
         Squash::Ruby.valueify("hello" => "world").should eql({
             "inspect"=>"{\"foo\"=>\"bar\"}",
             "json"=>"{\"foo\":\"bar\"}",
-            "yaml"=>"--- \nfoo: bar\n",
+            "yaml"=>yaml,
             "language"=>"ruby",
-            "to_s"=>"foobar",
+            "to_s"=>tos,
             "class_name"=>"Hash"})
       end
     end
@@ -239,10 +243,16 @@ describe Squash::Ruby do
         end
 
         it "should properly tokenize and normalize backtraces" do
-          @json['backtraces'].first[2].should eql(@exception.backtrace.map do |element|
+          bt         = @exception.backtrace.reject { |line| line.include?('.java') }
+          serialized = @json['backtraces'].first['backtrace'].reject { |elem| elem['type'] }
+          serialized.should eql(bt.map do |element|
             file, line, method = element.split(':')
             file.sub! /^#{Regexp.escape Dir.getwd}\//, ''
-            [file, line.to_i, method ? method.match(/in `(.+)'$/)[1] : nil]
+            {
+                'file'   => file,
+                'line'   => line.to_i,
+                'symbol' => method ? method.match(/in `(.+)'$/)[1] : nil
+            }
           end)
         end
 
@@ -314,11 +324,14 @@ describe Squash::Ruby do
             ["arjdbc/jdbc/RubyJdbcConnection.java:191:in `execute'"]
         )
         Squash::Ruby.notify @exception
-        JSON.parse(@body)['backtraces'].should eql([
-                                                       ['Active Thread/Fiber', true, [
-                                                           ['_JAVA_', 'RubyJdbcConnection.java', 191, 'execute', 'arjdbc.jdbc.RubyJdbcConnection']
-                                                       ]]
-                                                   ])
+        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+                                                     "faulted"   => true,
+                                                     "backtrace" =>
+                                                         [{"type"   => "obfuscated",
+                                                           "file"   => "RubyJdbcConnection.java",
+                                                           "line"   => 191,
+                                                           "symbol" => "execute",
+                                                           "class"  => "arjdbc.jdbc.RubyJdbcConnection"}]}])
         Object.send(:remove_const, :JRuby)
       end
 
@@ -328,11 +341,14 @@ describe Squash::Ruby do
             ["     instance_exec at org/jruby/RubyBasicObject.java:1757"]
         )
         Squash::Ruby.notify @exception
-        JSON.parse(@body)['backtraces'].should eql([
-                                                       ['Active Thread/Fiber', true, [
-                                                           ['_JAVA_', 'RubyBasicObject.java', 1757, 'instance_exec', 'org.jruby.RubyBasicObject']
-                                                       ]]
-                                                   ])
+        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+                                                     "faulted"   => true,
+                                                     "backtrace" =>
+                                                         [{"type"   => "obfuscated",
+                                                           "file"   => "RubyBasicObject.java",
+                                                           "line"   => 1757,
+                                                           "symbol" => "instance_exec",
+                                                           "class"  => "org.jruby.RubyBasicObject"}]}])
         Object.send(:remove_const, :JRuby)
       end
 
@@ -342,11 +358,14 @@ describe Squash::Ruby do
             ["org.jruby.RubyHash$27.visit(RubyHash.java:1646)"]
         )
         Squash::Ruby.notify @exception
-        JSON.parse(@body)['backtraces'].should eql([
-                                                       ['Active Thread/Fiber', true, [
-                                                           ['_JAVA_', 'RubyHash.java', 1646, 'visit', 'org.jruby.RubyHash$27']
-                                                       ]]
-                                                   ])
+        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+                                                     "faulted"   => true,
+                                                     "backtrace" =>
+                                                         [{"type"   => "obfuscated",
+                                                           "file"   => "RubyHash.java",
+                                                           "line"   => 1646,
+                                                           "symbol" => "visit",
+                                                           "class"  => "org.jruby.RubyHash$27"}]}])
         Object.send(:remove_const, :JRuby)
       end
     end
