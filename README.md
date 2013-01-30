@@ -4,6 +4,8 @@ Squash Client Library: Ruby
 This client library reports exceptions to Squash, the Squarish exception
 reporting and management system.
 
+[![Build Status](https://travis-ci.org/SquareSquash/ruby.png)](https://travis-ci.org/SquareSquash/ruby)
+
 Documentation
 -------------
 
