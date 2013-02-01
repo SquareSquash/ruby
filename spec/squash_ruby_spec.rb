@@ -592,15 +592,15 @@ describe Squash::Ruby do
       end
     end
 
-    context "[revision proc specified]" do
-      before(:each) { Squash::Ruby.instance_variable_set :@revision_proc_result, nil }
-      it "should return the result of the proc" do
-        Squash::Ruby.configure :revision_proc => lambda { 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
+    context "[revision specified]" do
+      it "should return the revision" do
+        Squash::Ruby.configure :revision      => 'cb586586d2882ebfb5e892c8fc558ada8d2faf95',
+                               :revision_file => 'test_file'
         Squash::Ruby.current_revision.should eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
       end
 
       it "should raise an exception for an improperly-formatted revision" do
-        Squash::Ruby.configure :revision_proc => lambda { 'hello!' }
+        Squash::Ruby.configure :revision => 'hello'
         lambda { Squash::Ruby.current_revision }.should raise_error(/Unknown Git revision/)
       end
     end

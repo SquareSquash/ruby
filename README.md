@@ -162,8 +162,7 @@ only one of the following configuration keys:
 
 * `revision_file`: The path to a file storing the SHA1 of the current Git
   revision. This is the revision of the code that is currently running.
-* `revision_proc`: A `Proc` that returns the 40-character SHA1 of the current
-  deployed revision. The result is cached.
+* `revision`: The 40-character SHA1 of the current deployed revision.
 * `repository_root`: The path to the working directory of the Git repository
   that is currently running. Use this option if your deployed code is a working
   Git repository.
