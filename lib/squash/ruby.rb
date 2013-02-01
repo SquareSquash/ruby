@@ -532,6 +532,8 @@ module Squash
     def self.current_revision
       revision = if configuration(:revision_file)
                    File.read(configuration(:revision_file)).chomp.strip
+                 elsif configuration(:revision_proc)
+                   @revision_proc_result ||= configuration(:revision_proc).call
                  else
                    head_file = File.join(configuration(:repository_root), '.git', 'HEAD')
                    if File.exist?(head_file)

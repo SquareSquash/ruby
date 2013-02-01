@@ -162,12 +162,14 @@ only one of the following configuration keys:
 
 * `revision_file`: The path to a file storing the SHA1 of the current Git
   revision. This is the revision of the code that is currently running.
+* `revision_proc`: A `Proc` that returns the 40-character SHA1 of the current
+  deployed revision. The result is cached.
 * `repository_root`: The path to the working directory of the Git repository
   that is currently running. Use this option if your deployed code is a working
   Git repository.
 
-By default, `repository_root` is assumed and is set to `Dir.getwd`.
-`revision_file` overrides `repository_root`.
+By default, `repository_root` is assumed and is set to `Dir.getwd`. Other
+options override `repository_root`.
 
 ### Error Transmission
 
