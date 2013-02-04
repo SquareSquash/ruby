@@ -460,16 +460,19 @@ module Squash
       elsif instance.kind_of?(Array) && elements_only
         instance.map { |i| valueify(i) }
       else
-        filtered = value_filter(instance)
-        yaml = begin filtered.to_yaml; rescue Exception; nil end
-        json = begin filtered.to_json; rescue Exception; nil end
+        filtered       = value_filter(instance)
+        yaml           = begin filtered.to_yaml; rescue Exception; nil end
+        json           = begin filtered.to_json; rescue Exception; nil end
+        inspect_result = begin filtered.inspect; rescue Exception => e; "[#{e.class}: #{e} raised when calling #inspect]" end
+        to_s_result    = begin filtered.to_s; rescue Exception => e; "[#{e.class}: #{e} raised when calling #to_s]" end
+
         {
             'language'   => 'ruby',
             'class_name' => filtered.class.to_s,
-            'inspect'    => filtered.inspect,
+            'inspect'    => inspect_result,
             'yaml'       => yaml,
             'json'       => json,
-            'to_s'       => (filtered.to_s rescue nil)
+            'to_s'       => to_s_result
         }
       end
     end

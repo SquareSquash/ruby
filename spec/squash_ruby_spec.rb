@@ -184,6 +184,38 @@ describe Squash::Ruby do
             "to_s"=>tos,
             "class_name"=>"Hash"})
       end
+
+      it "should gracefully recover from exceptions raised when calling #to_json" do
+        obj = Object.new
+        class << obj
+          def to_json() raise ArgumentError, "oops!"; end
+        end
+        Squash::Ruby.valueify(obj)['to_json'].should be_nil
+      end
+
+      it "should gracefully recover from exceptions raised when calling #to_yaml" do
+        obj = Object.new
+        class << obj
+          def to_yaml() raise ArgumentError, "oops!"; end
+        end
+        Squash::Ruby.valueify(obj)['to_yaml'].should be_nil
+      end
+
+      it "should gracefully recover from exceptions raised when calling #inspect" do
+        obj = Object.new
+        class << obj
+          def inspect() raise ArgumentError, "oops!"; end
+        end
+        Squash::Ruby.valueify(obj)['inspect'].should eql("[ArgumentError: oops! raised when calling #inspect]")
+      end
+
+      it "should gracefully recover from exceptions raised when calling #to_s" do
+        obj = Object.new
+        class << obj
+          def to_s() raise ArgumentError, "oops!"; end
+        end
+        Squash::Ruby.valueify(obj)['to_s'].should eql("[ArgumentError: oops! raised when calling #to_s]")
+      end
     end
 
     context "[http_transmit]" do
