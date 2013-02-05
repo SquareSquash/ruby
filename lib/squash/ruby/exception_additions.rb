@@ -34,7 +34,6 @@ class Exception
                 else
                   {}
                 end
-    Squash::Ruby.check_user_data user_data
     super(*args).user_data(user_data)
   end
 
