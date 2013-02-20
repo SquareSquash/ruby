@@ -400,6 +400,103 @@ describe Squash::Ruby do
                                                            "class"  => "org.jruby.RubyHash$27"}]}])
         Object.send(:remove_const, :JRuby)
       end
+
+      it "should properly tokenize JRuby Java backtraces (native method form)" do
+        JRuby = Object.new
+        @exception.stub!(:backtrace).and_return(
+            ["  sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)"]
+        )
+        Squash::Ruby.notify @exception
+        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+                                                     "faulted"   => true,
+                                                     "backtrace" =>
+                                                         [{"type"   => "java_native",
+                                                           "symbol" => "invoke0",
+                                                           "class"  => "sun.reflect.NativeMethodAccessorImpl"}]}])
+        Object.send(:remove_const, :JRuby)
+      end
+
+      it "should properly tokenize JRuby Java backtraces (ASM invoker)" do
+        JRuby = Object.new
+        @exception.stub!(:backtrace).and_return(
+            ["  org.jruby.RubyKernel$INVOKER$s$send19.call(RubyKernel$INVOKER$s$send19.gen)"]
+        )
+        Squash::Ruby.notify @exception
+        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+                                                     "faulted"   => true,
+                                                     "backtrace" =>
+                                                         [{"type"   => "asm_invoker",
+                                                           "file" => "send19.gen"}]}])
+        Object.send(:remove_const, :JRuby)
+      end
+
+      it "should properly tokenize JRuby Ruby backtraces (special form 1)" do
+        JRuby = Object.new
+        @exception.stub!(:backtrace).and_return(
+            ["  rubyjit.ActionController::Rendering$$process_action_7EA12C1BF98F2835D4AE1311F8A1D948CBFB87DA.__file__(vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/rendering.rb:10)",
+             "  rubyjit.ActiveSupport::TaggedLogging$$tagged!_2790A33722B3CBEBECECCFF90F769EB0F50B6FF2.chained_0_ensure_1$RUBY$__ensure__(vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/tagged_logging.rb:22)"]
+        )
+        Squash::Ruby.notify @exception
+        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+                                                     "faulted"   => true,
+                                                     "backtrace" =>
+                                                         [{"file"   => "vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/rendering.rb",
+                                                           "line"   => 10,
+                                                           "symbol" => "ActionController::Rendering#process_action"},
+                                                          {"file"   => "vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/tagged_logging.rb",
+                                                           "line"   => 22,
+                                                           "symbol" => "ActiveSupport::TaggedLogging#tagged!"}]}])
+        Object.send(:remove_const, :JRuby)
+      end
+
+      it "should properly tokenize JRuby Ruby backtraces (special form 2)" do
+        JRuby = Object.new
+        @exception.stub!(:backtrace).and_return(
+            ["  rubyjit$AbstractController::Callbacks$$process_action!_9E31DE6CC20BF4BD4675A39AC9F969A1DDA08377$block_0$RUBY$__file__.call(rubyjit$AbstractController::Callbacks$$process_action_9E31DE6CC20BF4BD4675A39AC9F969A1DDA08377$block_0$RUBY$__file__)"]
+        )
+        Squash::Ruby.notify @exception
+        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+                                                     "faulted"   => true,
+                                                     "backtrace" =>
+                                                         [{'type'   => 'jruby_block',
+                                                           "class" => "AbstractController::Callbacks",
+                                                           "symbol" => "process_action!"}]}])
+        Object.send(:remove_const, :JRuby)
+      end
+
+      it "should properly tokenize JRuby Ruby backtraces (special form 3)" do
+        JRuby = Object.new
+        @exception.stub!(:backtrace).and_return(
+            ["  rubyjit.Squash::Ruby::ControllerMethods$$_squash_around_filter!_84CA00BB277BFC0F702CBE86BC4897E3CE15B5AA.chained_0_rescue_1$RUBY$SYNTHETIC__file__(vendor/bundle/jruby/1.9/gems/squash_rails-1.1.0/lib/squash/ruby/controller_methods.rb:138)"]
+        )
+        Squash::Ruby.notify @exception
+        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+                                                     "faulted"   => true,
+                                                     "backtrace" =>
+                                                         [{"file"   => "vendor/bundle/jruby/1.9/gems/squash_rails-1.1.0/lib/squash/ruby/controller_methods.rb",
+                                                           "line"   => 138,
+                                                           "symbol" => "Squash::Ruby::ControllerMethods#_squash_around_filter!"}]}])
+        Object.send(:remove_const, :JRuby)
+      end
+
+      it "should properly tokenize JRuby Ruby backtraces (special form 4)" do
+        JRuby = Object.new
+        @exception.stub!(:backtrace).and_return(
+            ["  rubyjit.ActionController::ImplicitRender$$send_action_9AF6F8FC466F72ECECBF8347A4DDB47F06FB9E8F.__file__(vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/implicit_render.rb)",
+             "  rubyjit.ActiveSupport::Notifications::Instrumenter$$instrument!_2E2DDD0482328008F39B59E6DE8E25217A389086.chained_0_ensure_1$RUBY$__ensure__(vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/notifications/instrumenter.rb)"]
+        )
+        Squash::Ruby.notify @exception
+        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+                                                     "faulted"   => true,
+                                                     "backtrace" =>
+                                                         [{"file"   => "vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/implicit_render.rb",
+                                                           "type"   => 'jruby_noline',
+                                                           "symbol" => "ActionController::ImplicitRender#send_action"},
+                                                          {"file"   => "vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/notifications/instrumenter.rb",
+                                                           "type"   => 'jruby_noline',
+                                                           "symbol" => "ActiveSupport::Notifications::Instrumenter#instrument!"}]}])
+        Object.send(:remove_const, :JRuby)
+      end
     end
   end
 

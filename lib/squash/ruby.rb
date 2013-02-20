@@ -382,7 +382,7 @@ module Squash
 
     def self.prepare_backtrace(bt)
       if defined?(JRuby)
-        bt.map do |element|
+        bt.map(&:strip).map do |element|
           if element =~ /^((?:[a-z0-9_$]+\.)*(?:[a-z0-9_$]+))\.(\w+)\((\w+.java):(\d+)\)$/i
             # special JRuby backtrace element of the form "org.jruby.RubyHash$27.visit(RubyHash.java:1646)"
             {
@@ -391,6 +391,35 @@ module Squash
                 'line'   => $4.to_i,
                 'symbol' => $2,
                 'class'  => $1
+            }
+          elsif element =~ /^(.+?)\.(\w+)\(Native Method\)$/
+            {
+                'type'   => 'java_native',
+                'symbol' => $2,
+                'class'  => $1
+            }
+          elsif element =~ /^rubyjit[$.](.+?)\$\$(\w+?[?!]?)_[0-9A-F]{40}.+?__(?:file|ensure)__\.call\(.+\)$/
+            {
+                'type'   => 'jruby_block',
+                'class'  => $1,
+                'symbol' => $2
+            }
+          elsif element =~ /^rubyjit[$.](.+?)\$\$(\w+?[?!]?)_[0-9A-F]{40}.+?__(?:file|ensure)__\((.+?):(\d+)\)$/
+            {
+                'file'   => $3,
+                'line'   => $4.to_i,
+                'symbol' => "#{$1}##{$2}"
+            }
+          elsif element =~ /^.+\.call\(.+?(\w+)\.gen\)$/
+            {
+                'type' => 'asm_invoker',
+                'file' => $1 + '.gen'
+            }
+          elsif element =~ /^rubyjit[$.](.+?)\$\$(\w+?[?!]?)_[0-9A-F]{40}.+?__(?:file|ensure)__\((.+?)\)$/
+            {
+                'file'   => $3,
+                'type'   => 'jruby_noline',
+                'symbol' => "#{$1}##{$2}"
             }
           else
             if element.include?(' at ')
