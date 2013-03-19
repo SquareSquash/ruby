@@ -18,9 +18,9 @@ require 'net/https'
 
 require 'json'
 begin
-  Gem::Specification.find_by_name('system_timer')
   require 'system_timer'
-rescue Gem::LoadError
+rescue LoadError
+  # optional
 end
 
 # Container for methods relating to notifying Squash of exceptions.
