@@ -531,7 +531,7 @@ describe Squash::Ruby do
       raised.should be_true
     end
 
-    it "should not exceptions that are superclasses of the given classes" do
+    it "should report exceptions that are superclasses of the given classes" do
       raised = false
       begin
         Squash::Ruby.ignore_exceptions(RangeError) do
@@ -584,6 +584,59 @@ describe Squash::Ruby do
         raised = true
       end
       raised.should be_true
+    end
+  end
+
+  describe '.fail_silently' do
+    it "should raise an error if not passed a block" do
+      lambda { Squash::Ruby.fail_silently }.should raise_error(ArgumentError)
+    end
+
+    it "should report but not raise any exceptions if called with no arguments" do
+      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(ArgumentError), {})
+      lambda do
+        Squash::Ruby.fail_silently { raise ArgumentError, "sploops" }
+      end.should_not raise_error
+    end
+
+    it "should report but not raise any exceptions if called with only options" do
+      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(ArgumentError), :foo => 'bar')
+      lambda do
+        Squash::Ruby.fail_silently(:foo => 'bar') { raise ArgumentError, "sploops" }
+      end.should_not raise_error
+    end
+
+    it "should only suppress exceptions of the given classes" do
+      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(RangeError), {})
+      lambda do
+        Squash::Ruby.fail_silently(RangeError) { raise RangeError, "sploops" }
+      end.should_not raise_error
+
+      Squash::Ruby.should_not_receive(:notify)
+      lambda do
+        Squash::Ruby.fail_silently(RangeError) { raise ArgumentError, "sploops" }
+      end.should raise_error
+    end
+
+    it "should allow options" do
+      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(RangeError), :foo => 'bar')
+      lambda do
+        Squash::Ruby.fail_silently(RangeError, :foo => 'bar') { raise RangeError, "sploops" }
+      end.should_not raise_error
+    end
+
+    it "should not suppress exceptions that are superclasses of the given classes" do
+      Squash::Ruby.should_not_receive(:notify)
+      lambda do
+        Squash::Ruby.fail_silently(RangeError) { raise "sploops" }
+      end.should raise_error
+    end
+
+    it "should suppress exceptions that are subclasses of the given classes" do
+      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(FloatDomainError), {})
+      lambda do
+        Squash::Ruby.fail_silently(RangeError) { raise FloatDomainError, "sploops" }
+      end.should_not raise_error
     end
   end
 

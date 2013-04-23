@@ -152,6 +152,7 @@ module Squash
     #   ignore. If not provided, ignores all exceptions raised in the block.
     # @yield The code to ignore exceptions in.
     # @return The result of the block.
+    # @raise [ArgumentError] If no block is provided.
 
     def self.ignore_exceptions(exception_classes=nil)
       raise ArgumentError, "Squash::Ruby.ignore_exceptions must be called with a block" unless block_given?
@@ -182,6 +183,48 @@ module Squash
       rescue Object => err
         user_data.each { |ivar, val| err.send :instance_variable_set, :"@#{ivar}", val }
         raise
+      end
+    end
+
+    # @overload fail_silently(exception_classes=nil, options={})
+    #   Executes the block, suppressing and silently reporting any exceptions to
+    #   Squash. This allows you to ensure that a non-critical block of code
+    #   does not halt your application while still receiving exception
+    #   notifications in Squash.
+    #   @param [Array<Class>] exception_classes A list of exception classes to
+    #     report silently. Exceptions _not_ of these classes (or their
+    #     subclasses) will raise (and presumably be handled by Squash elsewhere
+    #     in your code).
+    #   @param [Hash] options Additional options to pass to {.notify}.
+    #   @yield The code to suppress exceptions in.
+    #   @return The result of the block.
+    # @raise [ArgumentError] If no block is provided.
+
+    def self.fail_silently(exception_classes_or_options=nil, options=nil)
+      raise ArgumentError, "Squash::Ruby.exception_classes must be called with a block" unless block_given?
+
+      exception_classes = if options
+                            exception_classes_or_options
+                          else
+                            if exception_classes_or_options.kind_of?(Hash) then
+                              options = exception_classes_or_options
+                              nil
+                            else
+                              exception_classes_or_options
+                            end
+                          end
+      options           ||= {}
+
+      exception_classes = [exception_classes] if exception_classes.kind_of?(Class)
+
+      begin
+        yield
+      rescue Object => err
+        if exception_classes.nil? || exception_classes.detect { |e| err.kind_of?(e) }
+          Squash::Ruby.notify err, options
+        else
+          raise
+        end
       end
     end
 
