@@ -258,6 +258,9 @@ module Squash
     # contain the given headers and body. It should not eat any exceptions
     # relating to HTTP connectivity issues.
     #
+    # There is support for the Linux idiom of configuring a proxy server by
+    # setting the environment variables `http_proxy` and `https_proxy`.
+    #
     # Your implementation should also respect the value of the
     # `transmit_timeout` configuration, which is accessible using
     # `configuration(:transmit_timeout)`.
@@ -269,8 +272,24 @@ module Squash
     # @return [true, false] Whether or not the response was successful.
 
     def self.http_transmit(url, headers, body)
-      uri  = URI.parse(url)
-      http = Net::HTTP.new(uri.host, uri.port)
+      uri = URI.parse(url)
+
+      no_proxy = if ENV['no_proxy']
+                   ENV['no_proxy'].split(',').any? { |ext| uri.host[-ext.length, ext.length] == ext }
+                 else
+                   false
+                 end
+
+      http = if uri.scheme == 'https' && ENV['https_proxy'] && !no_proxy
+               proxy = URI.parse("https://#{ENV['https_proxy']}")
+               Net::HTTP::Proxy(proxy.host, proxy.port, proxy.user, proxy.password).new(uri.host, uri.port)
+             elsif uri.scheme == 'http' && ENV['http_proxy'] && !no_proxy
+               proxy = URI.parse("http://#{ENV['http_proxy']}")
+               Net::HTTP::Proxy(proxy.host, proxy.port, proxy.user, proxy.password).new(uri.host, uri.port)
+             else
+               Net::HTTP.new(uri.host, uri.port)
+             end
+
       http_options(uri).each { |k, v| http.send :"#{k}=", v }
 
       block = lambda do

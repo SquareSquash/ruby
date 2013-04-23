@@ -174,15 +174,15 @@ describe Squash::Ruby do
 
       it "should filter values" do
         Squash::Ruby.stub!(:value_filter).and_return('foo' => 'bar')
-        tos = (RUBY_VERSION < '1.9.0') ? "foobar" : '{"foo"=>"bar"}'
+        tos  = (RUBY_VERSION < '1.9.0') ? "foobar" : '{"foo"=>"bar"}'
         yaml = (RUBY_VERSION < '1.9.0') ? "--- \nfoo: bar\n" : "---\nfoo: bar\n"
         Squash::Ruby.valueify("hello" => "world").should eql({
-            "inspect"=>"{\"foo\"=>\"bar\"}",
-            "json"=>"{\"foo\":\"bar\"}",
-            "yaml"=>yaml,
-            "language"=>"ruby",
-            "to_s"=>tos,
-            "class_name"=>"Hash"})
+                                                                 "inspect"    => "{\"foo\"=>\"bar\"}",
+                                                                 "json"       => "{\"foo\":\"bar\"}",
+                                                                 "yaml"       => yaml,
+                                                                 "language"   => "ruby",
+                                                                 "to_s"       => tos,
+                                                                 "class_name" => "Hash"})
       end
 
       it "should gracefully recover from exceptions raised when calling #to_json" do
@@ -240,6 +240,100 @@ describe Squash::Ruby do
         mock.should_receive(:start).once.and_yield(http)
 
         Squash::Ruby.notify @exception
+      end
+
+      it "should support the http_proxy environment variable" do
+        Squash::Ruby.configure :api_host => 'http://squash.example.com'
+
+        http_proxy        = ENV['http_proxy']
+        ENV['http_proxy'] = 'proxy.example.com'
+
+        http = mock('Net:HTTP')
+        http.should_receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+
+        mock = mock('Net::HTTP')
+        Net::HTTP.should_receive(:Proxy).once.with('proxy.example.com', 80, nil, nil).and_return(Net::HTTP)
+        Net::HTTP.stub!(:new).and_return(mock)
+        mock.stub!(:open_timeout=)
+        mock.stub!(:read_timeout=)
+        mock.stub!(:use_ssl=)
+        mock.should_receive(:start).once.and_yield(http)
+
+        Squash::Ruby.notify @exception
+
+        ENV['http_proxy'] = http_proxy
+      end
+
+      it "should support the https_proxy environment variable" do
+        Squash::Ruby.configure :api_host => 'https://squash.example.com'
+
+        http_proxy         = ENV['https_proxy']
+        ENV['https_proxy'] = 'proxy.example.com'
+
+        http = mock('Net:HTTP')
+        http.should_receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+
+        mock = mock('Net::HTTP')
+        Net::HTTP.should_receive(:Proxy).once.with('proxy.example.com', 443, nil, nil).and_return(Net::HTTP)
+        Net::HTTP.stub!(:new).and_return(mock)
+        mock.stub!(:open_timeout=)
+        mock.stub!(:read_timeout=)
+        mock.stub!(:use_ssl=)
+        mock.should_receive(:start).once.and_yield(http)
+
+        Squash::Ruby.notify @exception
+
+        ENV['https_proxy'] = http_proxy
+      end
+
+      it "should support the no_proxy environment variable" do
+        Squash::Ruby.configure :api_host => 'http://squash.example.com'
+
+        http_proxy        = ENV['http_proxy']
+        no_proxy          = ENV['no_proxy']
+        ENV['http_proxy'] = 'proxy.example.com'
+        ENV['no_proxy']   = '.example.com,.foo.com'
+
+        http = mock('Net:HTTP')
+        http.should_receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+
+        mock = mock('Net::HTTP')
+        Net::HTTP.should_not_receive(:Proxy)
+        Net::HTTP.should_receive(:new).once.and_return(mock)
+        mock.stub!(:open_timeout=)
+        mock.stub!(:read_timeout=)
+        mock.stub!(:use_ssl=)
+        mock.should_receive(:start).once.and_yield(http)
+
+        Squash::Ruby.notify @exception
+
+        ENV['http_proxy'] = http_proxy
+        ENV['no_proxy']   = no_proxy
+      end
+
+      it "should ignore inapplicable no_proxy values" do
+        Squash::Ruby.configure :api_host => 'http://squash.example.com'
+
+        http_proxy        = ENV['http_proxy']
+        no_proxy          = ENV['no_proxy']
+        ENV['http_proxy'] = 'proxy.example.com'
+        ENV['no_proxy']   = '.foo.com,.bar.com'
+
+        http = mock('Net:HTTP')
+        http.should_receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+
+        mock = mock('Net::HTTP')
+        Net::HTTP.should_receive(:Proxy).once.with('proxy.example.com', 80, nil, nil).and_return(Net::HTTP)
+        Net::HTTP.stub!(:new).and_return(mock)
+        mock.stub!(:open_timeout=)
+        mock.stub!(:read_timeout=)
+        mock.stub!(:use_ssl=)
+        mock.should_receive(:start).once.and_yield(http)
+
+        Squash::Ruby.notify @exception
+
+        ENV['http_proxy'] = http_proxy
+        ENV['no_proxy']   = no_proxy
       end
 
       context "[request body]" do
@@ -425,7 +519,7 @@ describe Squash::Ruby do
         JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
                                                      "faulted"   => true,
                                                      "backtrace" =>
-                                                         [{"type"   => "asm_invoker",
+                                                         [{"type" => "asm_invoker",
                                                            "file" => "send19.gen"}]}])
         Object.send(:remove_const, :JRuby)
       end
@@ -459,7 +553,7 @@ describe Squash::Ruby do
                                                      "faulted"   => true,
                                                      "backtrace" =>
                                                          [{'type'   => 'jruby_block',
-                                                           "class" => "AbstractController::Callbacks",
+                                                           "class"  => "AbstractController::Callbacks",
                                                            "symbol" => "process_action!"}]}])
         Object.send(:remove_const, :JRuby)
       end
