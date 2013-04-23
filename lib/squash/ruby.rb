@@ -258,6 +258,9 @@ module Squash
     # contain the given headers and body. It should not eat any exceptions
     # relating to HTTP connectivity issues.
     #
+    # It supports the linux idiom of setting environment variables `http_proxy`
+    # and `https_proxy` to configure a proxy server for the connection.
+    #
     # Your implementation should also respect the value of the
     # `transmit_timeout` configuration, which is accessible using
     # `configuration(:transmit_timeout)`.
@@ -270,7 +273,18 @@ module Squash
 
     def self.http_transmit(url, headers, body)
       uri  = URI.parse(url)
-      http = Net::HTTP.new(uri.host, uri.port)
+
+      http = if ENV['http_proxy']
+        proxy = if uri.scheme == "https" && ENV['https_proxy']
+          URI.parse("https://#{ENV['https_proxy']}")
+        else
+          URI.parse("http://#{ENV['http_proxy']}")
+        end
+        Net::HTTP::Proxy(proxy.host, proxy.port, proxy.user, proxy.password).new(uri.host, uri.port)
+      else
+        Net::HTTP.new(uri.host, uri.port)
+      end
+
       http_options(uri).each { |k, v| http.send :"#{k}=", v }
 
       block = lambda do
