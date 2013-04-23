@@ -51,6 +51,39 @@ module Squash
     # constant to include Rails-specific fields, for example.
     TOP_LEVEL_USER_DATA      = []
 
+    # Generates an exception JSON blob.  Can then be pushed to server in a
+    # background task
+    # @param [Object] exception The exception. Must at least duck-type an
+    #   `Exception` subclass.
+    # @param [Hash] user_data Any additional context-specific information about
+    #   the exception.
+    # @return [String] the notification JSON to send to squash.io.  If this is nil it means
+    #   exception generation failed.
+    def self.generate_exception(exception, user_data={})
+      occurred = Time.now
+
+      return nil if configuration(:disabled)
+      unless exception.respond_to?(:backtrace)
+        failsafe_log 'notify', "Tried to pass notify something other than an exception: #{exception.inspect}"
+        return nil
+      end
+      unless exception.backtrace
+        failsafe_log 'notify', "Tried to pass notify an exception with no backtrace: #{exception}"
+        return nil
+      end
+
+      exception, parents = unroll(exception)
+      return nil if ignored?(exception, user_data)
+      check_user_data user_data
+
+      hsh = exception_info_hash(exception, occurred, user_data, parents)
+      hsh.inject({}) { |h, (k, v)| h[k.to_s] = v; h }.to_json
+    end
+
+    def self.transmit_exception(blob)
+      http_transmit configuration(:api_host) + configuration(:notify_path), {}, blob
+    end
+
     # Notifies Squash of an exception.
     #
     # @param [Object] exception The exception. Must at least duck-type an
@@ -61,32 +94,18 @@ module Squash
     #   exceptions are ignored and not reported to Squash.)
     # @raise [StandardError] If Squash has not yet been fully configured (see
     #   {.configure}).
-
     def self.notify(exception, user_data={})
-      occurred = Time.now
-
-      return false if configuration(:disabled)
-      unless exception.respond_to?(:backtrace)
-        failsafe_log 'notify', "Tried to pass notify something other than an exception: #{exception.inspect}"
-        return false
-      end
-      unless exception.backtrace
-        failsafe_log 'notify', "Tried to pass notify an exception with no backtrace: #{exception}"
-        return false
-      end
-
       raise "The :api_key configuration is required" unless configuration(:api_key)
       raise "The :api_host configuration is required" unless configuration(:api_host)
       raise "The :environment configuration is required" unless configuration(:environment)
 
       begin
-        exception, parents = unroll(exception)
-        return false if ignored?(exception, user_data)
-        check_user_data user_data
+        blob = self.generate_exception(exception, user_data)
+        return false if blob.nil?
 
-        hsh = exception_info_hash(exception, occurred, user_data, parents)
-        http_transmit configuration(:api_host) + configuration(:notify_path), {}, hsh.inject({}) { |h, (k, v)| h[k.to_s] = v; h }.to_json
+        self.transmit_exception(blob)
         return true
+
       rescue Object => nested_error
         raise if configuration(:disable_failsafe)
         failsafe_handler exception, nested_error
