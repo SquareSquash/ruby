@@ -17,6 +17,7 @@ $LOAD_PATH.unshift(File.dirname(__FILE__))
 require 'rspec'
 require 'fakefs/safe'
 require 'squash/ruby'
+require 'squash/ruby/exception_additions'
 
 # Requires supporting files with custom matchers and macros, etc,
 # in ./support/ and its subdirectories.

@@ -120,6 +120,24 @@ end
 If monkey-patching doesn't appeal to you, then don't load
 `squash/ruby/exception_additions`; it's not required for the client to work.
 
+#### Recording Local Variables
+
+The Squash Ruby gem can be configured to read and record the values of local
+variables at each stack frame, and transmit this information back to the
+website. The website can display this information contextually to aid developers
+in troubleshooting an exception.
+
+In order to use this functionality, you'll need to do the following:
+
+* Include the [binding_of_caller](https://github.com/banister/binding_of_caller)
+  gem in your project. (This gem is only compatible with MRI 1.9, MRI 2.0, and
+  Rubinius.)
+* Add `require 'squash/ruby/exception_additions'` in your project if it's not
+  there already.
+
+Note that using this feature will impact performance when recording and
+transmitting exception data to Squash.
+
 #### Ignoring Exceptions
 
 You can ignore certain exceptions within a block of code if those exceptions are

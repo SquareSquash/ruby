@@ -369,17 +369,21 @@ describe Squash::Ruby do
         end
 
         it "should properly tokenize and normalize backtraces" do
-          bt         = @exception.backtrace.reject { |line| line.include?('.java') }
+          bt = if @exception.respond_to?(:_squash_bindings_stack)
+                 @exception._squash_bindings_stack
+               else
+                 @exception.backtrace.reject { |line| line.include?('.java') }
+               end
           serialized = @json['backtraces'].first['backtrace'].reject { |elem| elem['type'] }
-          serialized.should eql(bt.map do |element|
-            file, line, method = element.split(':')
+          serialized.zip(bt).each do |(serialized_element, bt_element)|
+            bt_element = bt_element.eval('caller(0, 1)[0]') if bt_element.kind_of?(Binding)
+            file, line, method = bt_element.split(':')
             file.sub! /^#{Regexp.escape Dir.getwd}\//, ''
-            {
-                'file'   => file,
-                'line'   => line.to_i,
-                'symbol' => method ? method.match(/in `(.+)'$/)[1] : nil
-            }
-          end)
+
+            serialized_element['file'].should eql(file)
+            serialized_element['line'].should eql(line.to_i)
+            serialized_element['symbol'].should eql(method ? method.match(/in `(.+)'$/)[1] : nil)
+          end
         end
 
         it "should transmit information about the environment" do
