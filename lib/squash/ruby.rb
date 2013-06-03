@@ -22,6 +22,11 @@ begin
 rescue LoadError
   # optional
 end
+begin
+  require 'binding_of_caller'
+rescue LoadError
+  # optional
+end
 
 # Container for methods relating to notifying Squash of exceptions.
 
@@ -442,11 +447,7 @@ module Squash
       environment_data.merge(top_level_user_data).merge(
           'class_name'        => exception.class.to_s,
           'message'           => exception.to_s,
-          'backtraces'        => [{
-                                      'name'      => "Active Thread/Fiber",
-                                      'faulted'   => true,
-                                      'backtrace' => prepare_backtrace(exception.backtrace)
-                                  }],
+          'backtraces'        => [prepare_backtrace(exception)],
           'occurred_at'       => occurred,
           'revision'          => current_revision,
 
@@ -460,116 +461,174 @@ module Squash
           'parent_exceptions' => parents.nil? ? nil : parents.map do |parent|
             {'class_name'  => parent.class.to_s,
              'message'     => parent.to_s,
-             'backtraces'  => [{
-                                   'name'      => "Active Thread/Fiber",
-                                   'faulted'   => true,
-                                   'backtrace' => prepare_backtrace(parent.backtrace)
-                               }],
+             'backtraces'  => [prepare_backtrace(parent)],
              'association' => 'original_exception',
              'ivars'       => instance_variable_hash(parent)}
           end
       )
     end
 
-    def self.prepare_backtrace(bt)
+    def self.prepare_backtrace(exception, name='Active Thread/Fiber', faulted=true)
       if defined?(JRuby)
-        bt.map(&:strip).map do |element|
-          if element =~ /^((?:[a-z0-9_$]+\.)*(?:[a-z0-9_$]+))\.(\w+)\((\w+.java):(\d+)\)$/i
-            # special JRuby backtrace element of the form "org.jruby.RubyHash$27.visit(RubyHash.java:1646)"
-            {
-                'type'   => 'obfuscated',
-                'file'   => $3,
-                'line'   => $4.to_i,
-                'symbol' => $2,
-                'class'  => $1
-            }
-          elsif element =~ /^(.+?)\.(\w+)\(Native Method\)$/
-            {
-                'type'   => 'java_native',
-                'symbol' => $2,
-                'class'  => $1
-            }
-          elsif element =~ /^rubyjit[$.](.+?)\$\$(\w+?[?!]?)_[0-9A-F]{40}.+?__(?:file|ensure)__\.call\(.+\)$/
-            {
-                'type'   => 'jruby_block',
-                'class'  => $1,
-                'symbol' => $2
-            }
-          elsif element =~ /^rubyjit[$.](.+?)\$\$(\w+?[?!]?)_[0-9A-F]{40}.+?__(?:file|ensure)__\((.+?):(\d+)\)$/
-            {
-                'file'   => $3,
-                'line'   => $4.to_i,
-                'symbol' => "#{$1}##{$2}"
-            }
-          elsif element =~ /^.+\.call\(.+?(\w+)\.gen\)$/
-            {
-                'type' => 'asm_invoker',
-                'file' => $1 + '.gen'
-            }
-          elsif element =~ /^rubyjit[$.](.+?)\$\$(\w+?[?!]?)_[0-9A-F]{40}.+?__(?:file|ensure)__\((.+?)\)$/
-            {
-                'file'   => $3,
-                'type'   => 'jruby_noline',
-                'symbol' => "#{$1}##{$2}"
-            }
+        prepare_jruby_backtrace exception.backtrace, name, faulted
+      elsif exception.respond_to?(:_squash_bindings_stack)
+        prepare_advanced_mri_backtrace exception._squash_bindings_stack, name, faulted
+      else
+        prepare_mri_backtrace exception.backtrace, name, faulted
+      end
+    end
+
+    def self.prepare_mri_backtrace(bt, name, faulted)
+      trace = bt.map do |element|
+        file, line, method = decode_basic_backtrace_line(element)
+
+        {
+            'file'   => file,
+            'line'   => line,
+            'symbol' => method
+        }
+      end
+
+      {
+          'name'      => name,
+          'faulted'   => faulted,
+          'backtrace' => trace
+      }
+    end
+
+    def self.decode_basic_backtrace_line(element)
+      file, line, method = element.split(':')
+      line               = line.to_i
+      line = nil if line < 1
+
+      file.slice! 0, configuration(:project_root).length + 1 if file[0, configuration(:project_root).length + 1] == configuration(:project_root) + '/'
+
+      if method =~ /^in `(.+)'$/
+        method = $1
+      end
+      method = nil if method && method.empty?
+      return file, line, method
+    end
+
+    def self.prepare_advanced_mri_backtrace(bindings, name, faulted)
+      data = {
+          'name'      => name,
+          'faulted'   => faulted,
+          'backtrace' => []
+      }
+
+      bindings.each do |binding|
+        if respond_to?(:caller_locations)
+          file = binding.eval('caller_locations(0, 1)[0].path')
+          line = binding.eval('caller_locations(0, 1)[0].lineno')
+          method = binding.eval('caller_locations(0, 1)[0].label')
+        else
+          file, line, method = decode_basic_backtrace_line(binding.eval('caller[0, 1]'))
+        end
+
+        if binding.eval('defined?(local_variables)') == 'method'
+          locals = binding.eval('local_variables')
+          locals = locals.inject({}) { |hsh, lvar| hsh[lvar] = binding.eval(lvar.to_s); hsh }
+        else
+          locals = nil
+        end
+
+        data['backtrace'] << {
+            'file'   => file,
+            'line'   => line,
+            'symbol' => method,
+            'locals' => valueify(locals, true)
+        }
+      end
+
+      data
+    end
+
+    def self.prepare_jruby_backtrace(bt, name, faulted)
+      trace = bt.map(&:strip).map do |element|
+        if element =~ /^((?:[a-z0-9_$]+\.)*(?:[a-z0-9_$]+))\.(\w+)\((\w+.java):(\d+)\)$/i
+          # special JRuby backtrace element of the form "org.jruby.RubyHash$27.visit(RubyHash.java:1646)"
+          {
+              'type'   => 'obfuscated',
+              'file'   => $3,
+              'line'   => $4.to_i,
+              'symbol' => $2,
+              'class'  => $1
+          }
+        elsif element =~ /^(.+?)\.(\w+)\(Native Method\)$/
+          {
+              'type'   => 'java_native',
+              'symbol' => $2,
+              'class'  => $1
+          }
+        elsif element =~ /^rubyjit[$.](.+?)\$\$(\w+?[?!]?)_[0-9A-F]{40}.+?__(?:file|ensure)__\.call\(.+\)$/
+          {
+              'type'   => 'jruby_block',
+              'class'  => $1,
+              'symbol' => $2
+          }
+        elsif element =~ /^rubyjit[$.](.+?)\$\$(\w+?[?!]?)_[0-9A-F]{40}.+?__(?:file|ensure)__\((.+?):(\d+)\)$/
+          {
+              'file'   => $3,
+              'line'   => $4.to_i,
+              'symbol' => "#{$1}##{$2}"
+          }
+        elsif element =~ /^.+\.call\(.+?(\w+)\.gen\)$/
+          {
+              'type' => 'asm_invoker',
+              'file' => $1 + '.gen'
+          }
+        elsif element =~ /^rubyjit[$.](.+?)\$\$(\w+?[?!]?)_[0-9A-F]{40}.+?__(?:file|ensure)__\((.+?)\)$/
+          {
+              'file'   => $3,
+              'type'   => 'jruby_noline',
+              'symbol' => "#{$1}##{$2}"
+          }
+        else
+          if element.include?(' at ')
+            method, fileline = element.split(' at ')
+            method.lstrip!
+            file, line = fileline.split(':')
           else
-            if element.include?(' at ')
-              method, fileline = element.split(' at ')
-              method.lstrip!
-              file, line = fileline.split(':')
-            else
-              file, line, method = element.split(':')
-              if method =~ /^in `(.+)'$/
-                method = $1
-              end
-              method = nil if method && method.empty?
-            end
-            line = line.to_i
-            line = nil if line < 1
+            file, line, method = element.split(':')
             if method =~ /^in `(.+)'$/
               method = $1
             end
             method = nil if method && method.empty?
-
-            # it could still be a java backtrace, even if it's not the special format
-            if file[-5, 5] == '.java'
-              {
-                  'type'   => 'obfuscated',
-                  'file'   => file.split('/').last,
-                  'line'   => line,
-                  'symbol' => method,
-                  'class'  => file.sub(/\.java$/, '').gsub('/', '.')
-              }
-            else
-              # ok now we're sure it's a ruby backtrace
-              file.slice! 0, configuration(:project_root).length + 1 if file[0, configuration(:project_root).length + 1] == configuration(:project_root) + '/'
-              {
-                  'file'   => file,
-                  'line'   => line,
-                  'symbol' => method
-              }
-            end
           end
-        end
-      else
-        bt.map do |element|
-          file, line, method = element.split(':')
-          line               = line.to_i
+          line = line.to_i
           line = nil if line < 1
-
-          file.slice! 0, configuration(:project_root).length + 1 if file[0, configuration(:project_root).length + 1] == configuration(:project_root) + '/'
-
           if method =~ /^in `(.+)'$/
             method = $1
           end
           method = nil if method && method.empty?
-          {
-              'file'   => file,
-              'line'   => line,
-              'symbol' => method
-          }
+
+          # it could still be a java backtrace, even if it's not the special format
+          if file[-5, 5] == '.java'
+            {
+                'type'   => 'obfuscated',
+                'file'   => file.split('/').last,
+                'line'   => line,
+                'symbol' => method,
+                'class'  => file.sub(/\.java$/, '').gsub('/', '.')
+            }
+          else
+            # ok now we're sure it's a ruby backtrace
+            file.slice! 0, configuration(:project_root).length + 1 if file[0, configuration(:project_root).length + 1] == configuration(:project_root) + '/'
+            {
+                'file'   => file,
+                'line'   => line,
+                'symbol' => method
+            }
+          end
         end
       end
+
+      {
+          'name'      => name,
+          'faulted'   => faulted,
+          'backtrace' => trace
+      }
     end
 
     def self.valueify(instance, elements_only=false)
