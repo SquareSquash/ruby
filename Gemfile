@@ -12,5 +12,5 @@ group :development do
   gem 'redcarpet', '< 3.0', :require => nil # version 3.0 not compatible with ruby 1.8
 
   # DEVELOPMENT
-  gem 'jeweler', github: 'technicalpickles/jeweler'
+  gem 'jeweler', :github => 'technicalpickles/jeweler'
 end
