@@ -321,7 +321,7 @@ module Squash
 
       http_options(uri).each { |k, v| http.send :"#{k}=", v }
 
-      block = lambda do
+      block = proc do
         http.start do |http|
           request = Net::HTTP::Post.new(uri.request_uri)
           request.add_field 'Content-Type', 'application/json'
@@ -338,9 +338,9 @@ module Squash
       end
 
       if defined?(SystemTimer)
-        SystemTimer.timeout_after configuration(:open_timeout), &block
+        SystemTimer.timeout_after((configuration(:open_timeout) + configuration(:transmit_timeout)), &block)
       else
-        block.call
+        Timeout.timeout((configuration(:open_timeout) + configuration(:transmit_timeout)), &block)
       end
     end
 

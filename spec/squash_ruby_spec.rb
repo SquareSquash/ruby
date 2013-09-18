@@ -173,7 +173,7 @@ describe Squash::Ruby do
       end
 
       it "should filter values" do
-        Squash::Ruby.stub!(:value_filter).and_return('foo' => 'bar')
+        Squash::Ruby.stub(:value_filter).and_return('foo' => 'bar')
         tos  = (RUBY_VERSION < '1.9.0') ? "foobar" : '{"foo"=>"bar"}'
         yaml = (RUBY_VERSION < '1.9.0') ? "--- \nfoo: bar\n" : "---\nfoo: bar\n"
         Squash::Ruby.valueify("hello" => "world").should eql({
@@ -226,17 +226,17 @@ describe Squash::Ruby do
       end
 
       it "should transmit to the API endpoint" do
-        http = mock('Net:HTTP')
+        http = double('Net:HTTP')
         http.should_receive(:request).with do |req|
           req.path == '/api/1.0/notify' &&
               req.body.size > 0
         end.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
-        mock = mock('Net::HTTP')
+        mock = double('Net::HTTP')
         Net::HTTP.should_receive(:new).once.with('squash.example.com', 443).and_return(mock)
         mock.should_receive(:open_timeout=).once.with(15)
         mock.should_receive(:read_timeout=).once.with(15)
-        mock.stub!(:use_ssl=)
+        mock.stub(:use_ssl=)
         mock.should_receive(:start).once.and_yield(http)
 
         Squash::Ruby.notify @exception
@@ -248,15 +248,15 @@ describe Squash::Ruby do
         http_proxy        = ENV['http_proxy']
         ENV['http_proxy'] = 'proxy.example.com'
 
-        http = mock('Net:HTTP')
+        http = double('Net:HTTP')
         http.should_receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
-        mock = mock('Net::HTTP')
+        mock = double('Net::HTTP')
         Net::HTTP.should_receive(:Proxy).once.with('proxy.example.com', 80, nil, nil).and_return(Net::HTTP)
-        Net::HTTP.stub!(:new).and_return(mock)
-        mock.stub!(:open_timeout=)
-        mock.stub!(:read_timeout=)
-        mock.stub!(:use_ssl=)
+        Net::HTTP.stub(:new).and_return(mock)
+        mock.stub(:open_timeout=)
+        mock.stub(:read_timeout=)
+        mock.stub(:use_ssl=)
         mock.should_receive(:start).once.and_yield(http)
 
         Squash::Ruby.notify @exception
@@ -270,15 +270,15 @@ describe Squash::Ruby do
         http_proxy         = ENV['https_proxy']
         ENV['https_proxy'] = 'proxy.example.com'
 
-        http = mock('Net:HTTP')
+        http = double('Net:HTTP')
         http.should_receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
-        mock = mock('Net::HTTP')
+        mock = double('Net::HTTP')
         Net::HTTP.should_receive(:Proxy).once.with('proxy.example.com', 443, nil, nil).and_return(Net::HTTP)
-        Net::HTTP.stub!(:new).and_return(mock)
-        mock.stub!(:open_timeout=)
-        mock.stub!(:read_timeout=)
-        mock.stub!(:use_ssl=)
+        Net::HTTP.stub(:new).and_return(mock)
+        mock.stub(:open_timeout=)
+        mock.stub(:read_timeout=)
+        mock.stub(:use_ssl=)
         mock.should_receive(:start).once.and_yield(http)
 
         Squash::Ruby.notify @exception
@@ -294,15 +294,15 @@ describe Squash::Ruby do
         ENV['http_proxy'] = 'proxy.example.com'
         ENV['no_proxy']   = '.example.com,.foo.com'
 
-        http = mock('Net:HTTP')
+        http = double('Net:HTTP')
         http.should_receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
-        mock = mock('Net::HTTP')
+        mock = double('Net::HTTP')
         Net::HTTP.should_not_receive(:Proxy)
         Net::HTTP.should_receive(:new).once.and_return(mock)
-        mock.stub!(:open_timeout=)
-        mock.stub!(:read_timeout=)
-        mock.stub!(:use_ssl=)
+        mock.stub(:open_timeout=)
+        mock.stub(:read_timeout=)
+        mock.stub(:use_ssl=)
         mock.should_receive(:start).once.and_yield(http)
 
         Squash::Ruby.notify @exception
@@ -319,15 +319,15 @@ describe Squash::Ruby do
         ENV['http_proxy'] = 'proxy.example.com'
         ENV['no_proxy']   = '.foo.com,.bar.com'
 
-        http = mock('Net:HTTP')
+        http = double('Net:HTTP')
         http.should_receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
-        mock = mock('Net::HTTP')
+        mock = double('Net::HTTP')
         Net::HTTP.should_receive(:Proxy).once.with('proxy.example.com', 80, nil, nil).and_return(Net::HTTP)
-        Net::HTTP.stub!(:new).and_return(mock)
-        mock.stub!(:open_timeout=)
-        mock.stub!(:read_timeout=)
-        mock.stub!(:use_ssl=)
+        Net::HTTP.stub(:new).and_return(mock)
+        mock.stub(:open_timeout=)
+        mock.stub(:read_timeout=)
+        mock.stub(:use_ssl=)
         mock.should_receive(:start).once.and_yield(http)
 
         Squash::Ruby.notify @exception
@@ -340,18 +340,18 @@ describe Squash::Ruby do
         before :each do
           @exception.send :instance_variable_set, :@custom_ivar, 'foobar'
 
-          http = mock('Net:HTTP')
+          http = double('Net:HTTP')
           http.should_receive(:request) do |req|
             @body = req.body
             Net::HTTPSuccess.new('1.1', 200, 'OK')
           end
 
-          mock = mock('Net::HTTP')
-          Net::HTTP.stub!(:new).and_return(mock)
-          mock.stub!(:start).and_yield(http)
-          mock.stub!(:open_timeout=)
-          mock.stub!(:read_timeout=)
-          mock.stub!(:use_ssl=)
+          mock = double('Net::HTTP')
+          Net::HTTP.stub(:new).and_return(mock)
+          mock.stub(:start).and_yield(http)
+          mock.stub(:open_timeout=)
+          mock.stub(:read_timeout=)
+          mock.stub(:use_ssl=)
 
           Squash::Ruby.notify @exception, :custom_data => 'barfoo'
           @json = JSON.parse(@body)
@@ -401,7 +401,7 @@ describe Squash::Ruby do
 
     context "[failsafe_handler]" do
       before(:each) do
-        Squash::Ruby.stub!(:http_transmit).and_raise(Net::HTTPError.new("File Not Found", 404))
+        Squash::Ruby.stub(:http_transmit).and_raise(Net::HTTPError.new("File Not Found", 404))
       end
 
       after(:each) { FileUtils.rm_f 'squash.failsafe.log' }
@@ -419,9 +419,9 @@ describe Squash::Ruby do
       end
 
       it "should log failsafe errors to stderr if it can't log to disk" do
-        File.stub!(:open).and_raise(Errno::EISDIR)
+        File.stub(:open).and_raise(Errno::EISDIR)
         stderr = []
-        $stderr.stub!(:puts) { |out| stderr << out }
+        $stderr.stub(:puts) { |out| stderr << out }
         Squash::Ruby.notify @exception
         File.exist?('squash.failsafe.log').should be_false
         stderr.should include("Couldn't write to failsafe log (Is a directory); writing to stderr instead.")
@@ -430,23 +430,23 @@ describe Squash::Ruby do
 
     context "[special backtraces]" do
       before :each do
-        http = mock('Net:HTTP')
+        http = double('Net:HTTP')
         http.should_receive(:request) do |req|
           @body = req.body
           Net::HTTPSuccess.new('1.1', 200, 'OK')
         end
 
-        mock = mock('Net::HTTP')
-        Net::HTTP.stub!(:new).and_return(mock)
-        mock.stub!(:start).and_yield(http)
-        mock.stub!(:open_timeout=)
-        mock.stub!(:read_timeout=)
-        mock.stub!(:use_ssl=)
+        mock = double('Net::HTTP')
+        Net::HTTP.stub(:new).and_return(mock)
+        mock.stub(:start).and_yield(http)
+        mock.stub(:open_timeout=)
+        mock.stub(:read_timeout=)
+        mock.stub(:use_ssl=)
       end
 
       it "should properly tokenize JRuby Java backtraces (form 1)" do
         ::JRuby = Object.new
-        @exception.stub!(:backtrace).and_return(
+        @exception.stub(:backtrace).and_return(
             ["arjdbc/jdbc/RubyJdbcConnection.java:191:in `execute'"]
         )
         Squash::Ruby.notify @exception
@@ -463,7 +463,7 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Java backtraces (form 2)" do
         ::JRuby = Object.new
-        @exception.stub!(:backtrace).and_return(
+        @exception.stub(:backtrace).and_return(
             ["     instance_exec at org/jruby/RubyBasicObject.java:1757"]
         )
         Squash::Ruby.notify @exception
@@ -480,7 +480,7 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Java backtraces (form 3)" do
         JRuby = Object.new
-        @exception.stub!(:backtrace).and_return(
+        @exception.stub(:backtrace).and_return(
             ["org.jruby.RubyHash$27.visit(RubyHash.java:1646)"]
         )
         Squash::Ruby.notify @exception
@@ -497,7 +497,7 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Java backtraces (native method form)" do
         JRuby = Object.new
-        @exception.stub!(:backtrace).and_return(
+        @exception.stub(:backtrace).and_return(
             ["  sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)"]
         )
         Squash::Ruby.notify @exception
@@ -512,7 +512,7 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Java backtraces (ASM invoker)" do
         JRuby = Object.new
-        @exception.stub!(:backtrace).and_return(
+        @exception.stub(:backtrace).and_return(
             ["  org.jruby.RubyKernel$INVOKER$s$send19.call(RubyKernel$INVOKER$s$send19.gen)"]
         )
         Squash::Ruby.notify @exception
@@ -526,7 +526,7 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Ruby backtraces (special form 1)" do
         JRuby = Object.new
-        @exception.stub!(:backtrace).and_return(
+        @exception.stub(:backtrace).and_return(
             ["  rubyjit.ActionController::Rendering$$process_action_7EA12C1BF98F2835D4AE1311F8A1D948CBFB87DA.__file__(vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/rendering.rb:10)",
              "  rubyjit.ActiveSupport::TaggedLogging$$tagged!_2790A33722B3CBEBECECCFF90F769EB0F50B6FF2.chained_0_ensure_1$RUBY$__ensure__(vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/tagged_logging.rb:22)"]
         )
@@ -545,7 +545,7 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Ruby backtraces (special form 2)" do
         JRuby = Object.new
-        @exception.stub!(:backtrace).and_return(
+        @exception.stub(:backtrace).and_return(
             ["  rubyjit$AbstractController::Callbacks$$process_action!_9E31DE6CC20BF4BD4675A39AC9F969A1DDA08377$block_0$RUBY$__file__.call(rubyjit$AbstractController::Callbacks$$process_action_9E31DE6CC20BF4BD4675A39AC9F969A1DDA08377$block_0$RUBY$__file__)"]
         )
         Squash::Ruby.notify @exception
@@ -560,7 +560,7 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Ruby backtraces (special form 3)" do
         JRuby = Object.new
-        @exception.stub!(:backtrace).and_return(
+        @exception.stub(:backtrace).and_return(
             ["  rubyjit.Squash::Ruby::ControllerMethods$$_squash_around_filter!_84CA00BB277BFC0F702CBE86BC4897E3CE15B5AA.chained_0_rescue_1$RUBY$SYNTHETIC__file__(vendor/bundle/jruby/1.9/gems/squash_rails-1.1.0/lib/squash/ruby/controller_methods.rb:138)"]
         )
         Squash::Ruby.notify @exception
@@ -575,7 +575,7 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Ruby backtraces (special form 4)" do
         JRuby = Object.new
-        @exception.stub!(:backtrace).and_return(
+        @exception.stub(:backtrace).and_return(
             ["  rubyjit.ActionController::ImplicitRender$$send_action_9AF6F8FC466F72ECECBF8347A4DDB47F06FB9E8F.__file__(vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/implicit_render.rb)",
              "  rubyjit.ActiveSupport::Notifications::Instrumenter$$instrument!_2E2DDD0482328008F39B59E6DE8E25217A389086.chained_0_ensure_1$RUBY$__ensure__(vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/notifications/instrumenter.rb)"]
         )
@@ -762,7 +762,7 @@ describe Squash::Ruby do
     end
 
     it "should POST a notification to the deploy endpoint" do
-      http = mock('HTTP')
+      http = double('HTTP')
       http.should_receive(:request).once.with do |request|
         JSON.parse(request.body).should eql(
                                             'project'     => {'api_key' => 'foobar'},
@@ -775,25 +775,25 @@ describe Squash::Ruby do
                                         )
       end.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
-      mock = mock('Net::HTTP')
+      mock = double('Net::HTTP')
       Net::HTTP.should_receive(:new).once.with('test.host', 80).and_return(mock)
       mock.should_receive(:use_ssl=).once.with(false)
-      mock.stub!(:open_timeout=)
-      mock.stub!(:read_timeout=)
+      mock.stub(:open_timeout=)
+      mock.stub(:read_timeout=)
       mock.should_receive(:start).once.and_yield(http)
 
       Squash::Ruby.notify_deploy 'development', 'abc123', 'myhost.local'
     end
 
     it "should report an error given a bad response" do
-      http = mock('HTTP')
-      http.stub!(:request).and_return(Net::HTTPNotFound.new('1.1', 404, 'Not Found'))
+      http = double('HTTP')
+      http.stub(:request).and_return(Net::HTTPNotFound.new('1.1', 404, 'Not Found'))
 
-      mock = mock('Net::HTTP')
+      mock = double('Net::HTTP')
       Net::HTTP.should_receive(:new).once.with('test.host', 80).and_return(mock)
       mock.should_receive(:use_ssl=).once.with(false)
-      mock.stub!(:open_timeout=)
-      mock.stub!(:read_timeout=)
+      mock.stub(:open_timeout=)
+      mock.stub(:read_timeout=)
       mock.should_receive(:start).once.and_yield(http)
 
       $stderr.should_receive(:puts).once.with(/\[Squash\] Bad response/)
@@ -803,14 +803,14 @@ describe Squash::Ruby do
   end
 
   it "should report a timeout to stderr" do
-    http = mock('HTTP')
-    http.stub!(:request).and_raise(Timeout::Error)
+    http = double('HTTP')
+    http.stub(:request).and_raise(Timeout::Error)
 
-    mock = mock('Net::HTTP')
+    mock = double('Net::HTTP')
     Net::HTTP.should_receive(:new).once.with('test.host', 80).and_return(mock)
     mock.should_receive(:use_ssl=).once.with(false)
-    mock.stub!(:open_timeout=)
-    mock.stub!(:read_timeout=)
+    mock.stub(:open_timeout=)
+    mock.stub(:read_timeout=)
     mock.should_receive(:start).once.and_yield(http)
 
     $stderr.should_receive(:puts).once.with(/\[Squash\] Timeout/)
