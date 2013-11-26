@@ -63,9 +63,11 @@ module Squash
     #   {.configure}).
 
     def self.notify(exception, user_data={})
-      raise "The :api_key configuration is required" unless configuration(:api_key)
-      raise "The :api_host configuration is required" unless configuration(:api_host)
-      raise "The :environment configuration is required" unless configuration(:environment)
+      unless configuration(:disabled)
+        raise "The :api_key configuration is required" unless configuration(:api_key)
+        raise "The :api_host configuration is required" unless configuration(:api_host)
+        raise "The :environment configuration is required" unless configuration(:environment)
+      end
 
       begin
         blob = self.generate_exception(exception, user_data)
