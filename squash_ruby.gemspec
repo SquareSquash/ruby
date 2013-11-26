@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = "squash_ruby"
-  s.version = "1.2.2"
+  s.version = "1.2.3"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Tim Morgan"]
-  s.date = "2013-09-18"
+  s.date = "2013-11-26"
   s.description = "This client library records Ruby exceptions to Squash."
   s.email = "tim@squareup.com"
   s.extra_rdoc_files = [
@@ -20,16 +20,17 @@ Gem::Specification.new do |s|
     "LICENSE.txt",
     "README.md",
     "lib/squash/ruby.rb",
-    "lib/squash/ruby/exception_additions.rb"
+    "lib/squash/ruby/exception_additions.rb",
+    "lib/squash_ruby.rb"
   ]
   s.homepage = "http://github.com/SquareSquash/ruby"
   s.licenses = ["Apache 2.0"]
   s.require_paths = ["lib"]
-  s.rubygems_version = "1.8.25"
+  s.rubygems_version = "2.0.11"
   s.summary = "Squash client for Ruby projects"
 
   if s.respond_to? :specification_version then
-    s.specification_version = 3
+    s.specification_version = 4
 
     if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
       s.add_runtime_dependency(%q<json>, [">= 0"])
