@@ -33,9 +33,9 @@ Usage
 -----
 
 Add the Squash client to your Gemfile with
-`gem 'squash_ruby', :require => 'squash/ruby'`. Before you can use Squash, you
-must configure it (see **Configuration** below). At a minimum, you must specify
-the API host and which project you are recording exceptions for:
+`gem 'squash_ruby'`. Before you can use Squash, you must configure it (see
+**Configuration** below). At a minimum, you must specify the API host and which
+project you are recording exceptions for:
 
 ```` ruby
 Squash::Ruby.configure :api_key => 'YOUR_API_KEY',
