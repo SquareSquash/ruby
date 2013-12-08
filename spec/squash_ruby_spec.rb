@@ -36,28 +36,28 @@ describe Squash::Ruby do
 
     it "should return false if Squash is disabled" do
       Squash::Ruby.configure :disabled => true
-      Squash::Ruby.should_not_receive(:http_transmit)
-      Squash::Ruby.notify(@exception).should be_false
+      expect(Squash::Ruby).not_to receive(:http_transmit)
+      expect(Squash::Ruby.notify(@exception)).to be_false
     end
 
     it "should return false if the exception has no backtrace" do
-      Squash::Ruby.should_not_receive(:http_transmit)
-      Squash::Ruby.notify(StandardError.new).should be_false
+      expect(Squash::Ruby).not_to receive(:http_transmit)
+      expect(Squash::Ruby.notify(StandardError.new)).to be_false
     end
 
     it "should return false if the exception is not an exception" do
-      Squash::Ruby.should_not_receive(:http_transmit)
-      Squash::Ruby.notify("wut is this?!").should be_false
+      expect(Squash::Ruby).not_to receive(:http_transmit)
+      expect(Squash::Ruby.notify("wut is this?!")).to be_false
     end
 
     it "should raise an exception if the API key is not configured" do
       Squash::Ruby.configure :api_key => nil
-      lambda { Squash::Ruby.notify @exception }.should raise_error(/api_key/)
+      expect { Squash::Ruby.notify @exception }.to raise_error(/api_key/)
     end
 
     it "should raise an exception if the environment is not configured" do
       Squash::Ruby.configure :environment => nil
-      lambda { Squash::Ruby.notify @exception }.should raise_error(/environment/)
+      expect { Squash::Ruby.notify @exception }.to raise_error(/environment/)
     end
 
     context "[unrolling]" do
@@ -76,21 +76,21 @@ describe Squash::Ruby do
       end
 
       it "should unroll wrapped exceptions" do
-        Squash::Ruby.should_receive(:http_transmit).with do |_, _, body|
+        expect(Squash::Ruby).to receive(:http_transmit).with { |_, _, body|
           JSON.parse(body)['class_name'] == 'RangeError'
-        end
+        }
         Squash::Ruby.notify @exception
       end
 
       it "should include parent exception information" do
-        Squash::Ruby.should_receive(:http_transmit).with do |_, _, body|
+        expect(Squash::Ruby).to receive(:http_transmit).with { |_, _, body|
           JSON.parse(body)['parent_exceptions'].size == 1 &&
               JSON.parse(body)['parent_exceptions'].first['class_name'] == 'ArgumentError' &&
               JSON.parse(body)['parent_exceptions'].first['association'] == 'original_exception' &&
               JSON.parse(body)['parent_exceptions'].first['message'] == 'Sploops!' &&
               JSON.parse(body)['parent_exceptions'].first.include?('ivars') &&
               JSON.parse(body)['parent_exceptions'].first.include?('backtraces')
-        end
+        }
         Squash::Ruby.notify @exception
       end
     end
@@ -98,23 +98,23 @@ describe Squash::Ruby do
     context "[ignored?]" do
       it "should return true if the exception is ignored because of an ignore block" do
         @exception.instance_variable_set :@_squash_do_not_report, true
-        Squash::Ruby.should_not_receive(:http_transmit)
-        Squash::Ruby.notify(@exception).should be_false
+        expect(Squash::Ruby).not_to receive(:http_transmit)
+        expect(Squash::Ruby.notify(@exception)).to be_false
       end
 
       ['ArgumentError', %w( ArgumentError ), '::ArgumentError', 'StandardError', ArgumentError].each do |klass|
         context "[ignored exception = #{klass.inspect}]" do
           it "should return true if the exception is ignored because of the ignored-exceptions configuration" do
             Squash::Ruby.configure :ignored_exception_classes => klass
-            Squash::Ruby.should_not_receive(:http_transmit)
-            Squash::Ruby.notify(@exception).should be_false
+            expect(Squash::Ruby).not_to receive(:http_transmit)
+            expect(Squash::Ruby.notify(@exception)).to be_false
           end
 
           if klass.kind_of?(String)
             it "should return true if the exception is ignored because of the ignored-exception-messages configuration (string)" do
               Squash::Ruby.configure :ignored_exception_messages => {klass => 'oo'}
-              Squash::Ruby.should_not_receive(:http_transmit)
-              Squash::Ruby.notify(@exception).should be_false
+              expect(Squash::Ruby).not_to receive(:http_transmit)
+              expect(Squash::Ruby.notify(@exception)).to be_false
             end
           end
         end
@@ -122,31 +122,31 @@ describe Squash::Ruby do
 
       it "should return true if the exception is ignored because of the ignored-exception-messages configuration (regexp)" do
         Squash::Ruby.configure :ignored_exception_messages => {'ArgumentError' => /oo/}
-        Squash::Ruby.should_not_receive(:http_transmit)
-        Squash::Ruby.notify(@exception).should be_false
+        expect(Squash::Ruby).not_to receive(:http_transmit)
+        expect(Squash::Ruby.notify(@exception)).to be_false
       end
 
       it "should return true if the exception is ignored because of the ignored-exception-procs configuration" do
         Squash::Ruby.configure :ignored_exception_procs => lambda { |error, user_data| error.kind_of?(ArgumentError) && user_data[:foo] == 'bar' }
 
-        Squash::Ruby.should_receive(:http_transmit).once
-        Squash::Ruby.notify(@exception, :foo => 'bar').should be_false
-        Squash::Ruby.notify(@exception, :foo => 'baz').should be_true
+        expect(Squash::Ruby).to receive(:http_transmit).once
+        expect(Squash::Ruby.notify(@exception, :foo => 'bar')).to be_false
+        expect(Squash::Ruby.notify(@exception, :foo => 'baz')).to be_true
       end
     end
 
     context "[check_user_data]" do
       it "should raise an error if the user data contains :bt" do
-        Squash::Ruby.should_receive(:failsafe_handler).with do |_, error|
+        expect(Squash::Ruby).to receive(:failsafe_handler).with { |_, error|
           error.to_s.include? 'bt'
-        end
+        }
         Squash::Ruby.notify @exception, :bt => 'foo'
       end
 
       it "should raise an error if the user data contains :mesg" do
-        Squash::Ruby.should_receive(:failsafe_handler).with do |_, error|
+        expect(Squash::Ruby).to receive(:failsafe_handler).with { |_, error|
           error.to_s.include? 'mesg'
-        end
+        }
         Squash::Ruby.notify @exception, :mesg => 'foo'
       end
     end
@@ -157,7 +157,7 @@ describe Squash::Ruby do
       it "should convert variables to complex value hashes" do
         yaml = (defined?(JRuby) && RUBY_VERSION >= '1.9.0') ? "--- !ruby/regexp '/Hello, world!/'\n" : "--- !ruby/regexp /Hello, world!/\n"
         yaml << "...\n" if RUBY_VERSION >= '1.9.0' && !defined?(JRuby)
-        Squash::Ruby.valueify(/Hello, world!/).should eql("language"   => "ruby",
+        expect(Squash::Ruby.valueify(/Hello, world!/)).to eql("language"   => "ruby",
                                                           "inspect"    => "/Hello, world!/",
                                                           "yaml"       => yaml,
                                                           "class_name" => "Regexp",
@@ -166,17 +166,17 @@ describe Squash::Ruby do
       end
 
       it "should not convert JSON primitives" do
-        Squash::Ruby.valueify("hello").should eql("hello")
-        Squash::Ruby.valueify(true).should eql(true)
-        Squash::Ruby.valueify(false).should eql(false)
-        Squash::Ruby.valueify(nil).should eql(nil)
+        expect(Squash::Ruby.valueify("hello")).to eql("hello")
+        expect(Squash::Ruby.valueify(true)).to eql(true)
+        expect(Squash::Ruby.valueify(false)).to eql(false)
+        expect(Squash::Ruby.valueify(nil)).to eql(nil)
       end
 
       it "should filter values" do
-        Squash::Ruby.stub(:value_filter).and_return('foo' => 'bar')
+        allow(Squash::Ruby).to receive(:value_filter).and_return('foo' => 'bar')
         tos  = (RUBY_VERSION < '1.9.0') ? "foobar" : '{"foo"=>"bar"}'
         yaml = (RUBY_VERSION < '1.9.0') ? "--- \nfoo: bar\n" : "---\nfoo: bar\n"
-        Squash::Ruby.valueify("hello" => "world").should eql({
+        expect(Squash::Ruby.valueify("hello" => "world")).to eql({
                                                                  "inspect"    => "{\"foo\"=>\"bar\"}",
                                                                  "json"       => "{\"foo\":\"bar\"}",
                                                                  "yaml"       => yaml,
@@ -190,7 +190,7 @@ describe Squash::Ruby do
         class << obj
           def to_json() raise ArgumentError, "oops!"; end
         end
-        Squash::Ruby.valueify(obj)['to_json'].should be_nil
+        expect(Squash::Ruby.valueify(obj)['to_json']).to be_nil
       end
 
       it "should gracefully recover from exceptions raised when calling #to_yaml" do
@@ -198,7 +198,7 @@ describe Squash::Ruby do
         class << obj
           def to_yaml() raise ArgumentError, "oops!"; end
         end
-        Squash::Ruby.valueify(obj)['to_yaml'].should be_nil
+        expect(Squash::Ruby.valueify(obj)['to_yaml']).to be_nil
       end
 
       it "should gracefully recover from exceptions raised when calling #inspect" do
@@ -206,7 +206,7 @@ describe Squash::Ruby do
         class << obj
           def inspect() raise ArgumentError, "oops!"; end
         end
-        Squash::Ruby.valueify(obj)['inspect'].should eql("[ArgumentError: oops! raised when calling #inspect]")
+        expect(Squash::Ruby.valueify(obj)['inspect']).to eql("[ArgumentError: oops! raised when calling #inspect]")
       end
 
       it "should gracefully recover from exceptions raised when calling #to_s" do
@@ -214,7 +214,7 @@ describe Squash::Ruby do
         class << obj
           def to_s() raise ArgumentError, "oops!"; end
         end
-        Squash::Ruby.valueify(obj)['to_s'].should eql("[ArgumentError: oops! raised when calling #to_s]")
+        expect(Squash::Ruby.valueify(obj)['to_s']).to eql("[ArgumentError: oops! raised when calling #to_s]")
       end
     end
 
@@ -227,17 +227,17 @@ describe Squash::Ruby do
 
       it "should transmit to the API endpoint" do
         http = double('Net:HTTP')
-        http.should_receive(:request).with do |req|
+        expect(http).to receive(:request).with { |req|
           req.path == '/api/1.0/notify' &&
               req.body.size > 0
-        end.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+        }.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
         mock = double('Net::HTTP')
-        Net::HTTP.should_receive(:new).once.with('squash.example.com', 443).and_return(mock)
-        mock.should_receive(:open_timeout=).once.with(15)
-        mock.should_receive(:read_timeout=).once.with(15)
-        mock.stub(:use_ssl=)
-        mock.should_receive(:start).once.and_yield(http)
+        expect(Net::HTTP).to receive(:new).once.with('squash.example.com', 443).and_return(mock)
+        expect(mock).to receive(:open_timeout=).once.with(15)
+        expect(mock).to receive(:read_timeout=).once.with(15)
+        allow(mock).to receive(:use_ssl=)
+        expect(mock).to receive(:start).once.and_yield(http)
 
         Squash::Ruby.notify @exception
       end
@@ -249,15 +249,15 @@ describe Squash::Ruby do
         ENV['http_proxy'] = 'proxy.example.com'
 
         http = double('Net:HTTP')
-        http.should_receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+        expect(http).to receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
         mock = double('Net::HTTP')
-        Net::HTTP.should_receive(:Proxy).once.with('proxy.example.com', 80, nil, nil).and_return(Net::HTTP)
-        Net::HTTP.stub(:new).and_return(mock)
-        mock.stub(:open_timeout=)
-        mock.stub(:read_timeout=)
-        mock.stub(:use_ssl=)
-        mock.should_receive(:start).once.and_yield(http)
+        expect(Net::HTTP).to receive(:Proxy).once.with('proxy.example.com', 80, nil, nil).and_return(Net::HTTP)
+        allow(Net::HTTP).to receive(:new).and_return(mock)
+        allow(mock).to receive(:open_timeout=)
+        allow(mock).to receive(:read_timeout=)
+        allow(mock).to receive(:use_ssl=)
+        expect(mock).to receive(:start).once.and_yield(http)
 
         Squash::Ruby.notify @exception
 
@@ -271,15 +271,15 @@ describe Squash::Ruby do
         ENV['https_proxy'] = 'proxy.example.com'
 
         http = double('Net:HTTP')
-        http.should_receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+        expect(http).to receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
         mock = double('Net::HTTP')
-        Net::HTTP.should_receive(:Proxy).once.with('proxy.example.com', 443, nil, nil).and_return(Net::HTTP)
-        Net::HTTP.stub(:new).and_return(mock)
-        mock.stub(:open_timeout=)
-        mock.stub(:read_timeout=)
-        mock.stub(:use_ssl=)
-        mock.should_receive(:start).once.and_yield(http)
+        expect(Net::HTTP).to receive(:Proxy).once.with('proxy.example.com', 443, nil, nil).and_return(Net::HTTP)
+        allow(Net::HTTP).to receive(:new).and_return(mock)
+        allow(mock).to receive(:open_timeout=)
+        allow(mock).to receive(:read_timeout=)
+        allow(mock).to receive(:use_ssl=)
+        expect(mock).to receive(:start).once.and_yield(http)
 
         Squash::Ruby.notify @exception
 
@@ -295,15 +295,15 @@ describe Squash::Ruby do
         ENV['no_proxy']   = '.example.com,.foo.com'
 
         http = double('Net:HTTP')
-        http.should_receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+        expect(http).to receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
         mock = double('Net::HTTP')
-        Net::HTTP.should_not_receive(:Proxy)
-        Net::HTTP.should_receive(:new).once.and_return(mock)
-        mock.stub(:open_timeout=)
-        mock.stub(:read_timeout=)
-        mock.stub(:use_ssl=)
-        mock.should_receive(:start).once.and_yield(http)
+        expect(Net::HTTP).not_to receive(:Proxy)
+        expect(Net::HTTP).to receive(:new).once.and_return(mock)
+        allow(mock).to receive(:open_timeout=)
+        allow(mock).to receive(:read_timeout=)
+        allow(mock).to receive(:use_ssl=)
+        expect(mock).to receive(:start).once.and_yield(http)
 
         Squash::Ruby.notify @exception
 
@@ -320,15 +320,15 @@ describe Squash::Ruby do
         ENV['no_proxy']   = '.foo.com,.bar.com'
 
         http = double('Net:HTTP')
-        http.should_receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+        expect(http).to receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
         mock = double('Net::HTTP')
-        Net::HTTP.should_receive(:Proxy).once.with('proxy.example.com', 80, nil, nil).and_return(Net::HTTP)
-        Net::HTTP.stub(:new).and_return(mock)
-        mock.stub(:open_timeout=)
-        mock.stub(:read_timeout=)
-        mock.stub(:use_ssl=)
-        mock.should_receive(:start).once.and_yield(http)
+        expect(Net::HTTP).to receive(:Proxy).once.with('proxy.example.com', 80, nil, nil).and_return(Net::HTTP)
+        allow(Net::HTTP).to receive(:new).and_return(mock)
+        allow(mock).to receive(:open_timeout=)
+        allow(mock).to receive(:read_timeout=)
+        allow(mock).to receive(:use_ssl=)
+        expect(mock).to receive(:start).once.and_yield(http)
 
         Squash::Ruby.notify @exception
 
@@ -341,37 +341,37 @@ describe Squash::Ruby do
           @exception.send :instance_variable_set, :@custom_ivar, 'foobar'
 
           http = double('Net:HTTP')
-          http.should_receive(:request) do |req|
+          expect(http).to receive(:request) do |req|
             @body = req.body
             Net::HTTPSuccess.new('1.1', 200, 'OK')
           end
 
           mock = double('Net::HTTP')
-          Net::HTTP.stub(:new).and_return(mock)
-          mock.stub(:start).and_yield(http)
-          mock.stub(:open_timeout=)
-          mock.stub(:read_timeout=)
-          mock.stub(:use_ssl=)
+          allow(Net::HTTP).to receive(:new).and_return(mock)
+          allow(mock).to receive(:start).and_yield(http)
+          allow(mock).to receive(:open_timeout=)
+          allow(mock).to receive(:read_timeout=)
+          allow(mock).to receive(:use_ssl=)
 
           Squash::Ruby.notify @exception, :custom_data => 'barfoo'
           @json = JSON.parse(@body)
         end
 
         it "should transmit information about the exception" do
-          @json.should include('class_name')
-          @json.should include('message')
-          @json.should include('backtraces')
-          @json.should include('occurred_at')
-          @json.should include('revision')
+          expect(@json).to include('class_name')
+          expect(@json).to include('message')
+          expect(@json).to include('backtraces')
+          expect(@json).to include('occurred_at')
+          expect(@json).to include('revision')
 
-          @json['environment'].should eql('test')
-          @json['client'].should eql('ruby')
+          expect(@json['environment']).to eql('test')
+          expect(@json['client']).to eql('ruby')
         end
 
         it "should properly tokenize and normalize backtraces" do
           bt         = @exception.backtrace.reject { |line| line.include?('.java') }
           serialized = @json['backtraces'].first['backtrace'].reject { |elem| elem['type'] }
-          serialized.should eql(bt.map do |element|
+          expect(serialized).to eql(bt.map do |element|
             file, line, method = element.split(':')
             file.sub! /^#{Regexp.escape Dir.getwd}\//, ''
             {
@@ -383,74 +383,74 @@ describe Squash::Ruby do
         end
 
         it "should transmit information about the environment" do
-          @json.should include('pid')
-          @json.should include('hostname')
-          @json['env_vars'].should eql(ENV.to_hash)
-          @json.should include('arguments')
+          expect(@json).to include('pid')
+          expect(@json).to include('hostname')
+          expect(@json['env_vars']).to eql(ENV.to_hash)
+          expect(@json).to include('arguments')
         end
 
         it "should transmit the user data" do
-          @json['user_data'].should include('custom_data')
+          expect(@json['user_data']).to include('custom_data')
         end
 
         it "should transmit the exception instance variables" do
-          @json['ivars'].should include('custom_ivar')
+          expect(@json['ivars']).to include('custom_ivar')
         end
       end
     end
 
     context "[failsafe_handler]" do
       before(:each) do
-        Squash::Ruby.stub(:http_transmit).and_raise(Net::HTTPError.new("File Not Found", 404))
+        allow(Squash::Ruby).to receive(:http_transmit).and_raise(Net::HTTPError.new("File Not Found", 404))
       end
 
       after(:each) { FileUtils.rm_f 'squash.failsafe.log' }
 
       it "should log failsafe errors to the failsafe log" do
         Squash::Ruby.notify @exception
-        File.read('squash.failsafe.log').should include('Net::HTTPError')
-        File.read('squash.failsafe.log').should include('Sploops!')
+        expect(File.read('squash.failsafe.log')).to include('Net::HTTPError')
+        expect(File.read('squash.failsafe.log')).to include('Sploops!')
       end
 
       it "should raise failsafe errors if the failsafe handler is disabled" do
         Squash::Ruby.configure :disable_failsafe => true
-        lambda { Squash::Ruby.notify @exception }.should raise_error(Net::HTTPError)
-        File.exist?('squash.failsafe.log').should be_false
+        expect { Squash::Ruby.notify @exception }.to raise_error(Net::HTTPError)
+        expect(File.exist?('squash.failsafe.log')).to be_false
       end
 
       it "should log failsafe errors to stderr if it can't log to disk" do
-        File.stub(:open).and_raise(Errno::EISDIR)
+        allow(File).to receive(:open).and_raise(Errno::EISDIR)
         stderr = []
-        $stderr.stub(:puts) { |out| stderr << out }
+        allow($stderr).to receive(:puts) { |out| stderr << out }
         Squash::Ruby.notify @exception
-        File.exist?('squash.failsafe.log').should be_false
-        stderr.should include("Couldn't write to failsafe log (Is a directory); writing to stderr instead.")
+        expect(File.exist?('squash.failsafe.log')).to be_false
+        expect(stderr).to include("Couldn't write to failsafe log (Is a directory); writing to stderr instead.")
       end
     end
 
     context "[special backtraces]" do
       before :each do
         http = double('Net:HTTP')
-        http.should_receive(:request) do |req|
+        expect(http).to receive(:request) do |req|
           @body = req.body
           Net::HTTPSuccess.new('1.1', 200, 'OK')
         end
 
         mock = double('Net::HTTP')
-        Net::HTTP.stub(:new).and_return(mock)
-        mock.stub(:start).and_yield(http)
-        mock.stub(:open_timeout=)
-        mock.stub(:read_timeout=)
-        mock.stub(:use_ssl=)
+        allow(Net::HTTP).to receive(:new).and_return(mock)
+        allow(mock).to receive(:start).and_yield(http)
+        allow(mock).to receive(:open_timeout=)
+        allow(mock).to receive(:read_timeout=)
+        allow(mock).to receive(:use_ssl=)
       end
 
       it "should properly tokenize JRuby Java backtraces (form 1)" do
         ::JRuby = Object.new
-        @exception.stub(:backtrace).and_return(
+        allow(@exception).to receive(:backtrace).and_return(
             ["arjdbc/jdbc/RubyJdbcConnection.java:191:in `execute'"]
         )
         Squash::Ruby.notify @exception
-        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+        expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
                                                      "faulted"   => true,
                                                      "backtrace" =>
                                                          [{"type"   => "obfuscated",
@@ -463,11 +463,11 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Java backtraces (form 2)" do
         ::JRuby = Object.new
-        @exception.stub(:backtrace).and_return(
+        allow(@exception).to receive(:backtrace).and_return(
             ["     instance_exec at org/jruby/RubyBasicObject.java:1757"]
         )
         Squash::Ruby.notify @exception
-        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+        expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
                                                      "faulted"   => true,
                                                      "backtrace" =>
                                                          [{"type"   => "obfuscated",
@@ -480,11 +480,11 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Java backtraces (form 3)" do
         JRuby = Object.new
-        @exception.stub(:backtrace).and_return(
+        allow(@exception).to receive(:backtrace).and_return(
             ["org.jruby.RubyHash$27.visit(RubyHash.java:1646)"]
         )
         Squash::Ruby.notify @exception
-        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+        expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
                                                      "faulted"   => true,
                                                      "backtrace" =>
                                                          [{"type"   => "obfuscated",
@@ -497,11 +497,11 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Java backtraces (native method form)" do
         JRuby = Object.new
-        @exception.stub(:backtrace).and_return(
+        allow(@exception).to receive(:backtrace).and_return(
             ["  sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)"]
         )
         Squash::Ruby.notify @exception
-        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+        expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
                                                      "faulted"   => true,
                                                      "backtrace" =>
                                                          [{"type"   => "java_native",
@@ -512,11 +512,11 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Java backtraces (ASM invoker)" do
         JRuby = Object.new
-        @exception.stub(:backtrace).and_return(
+        allow(@exception).to receive(:backtrace).and_return(
             ["  org.jruby.RubyKernel$INVOKER$s$send19.call(RubyKernel$INVOKER$s$send19.gen)"]
         )
         Squash::Ruby.notify @exception
-        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+        expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
                                                      "faulted"   => true,
                                                      "backtrace" =>
                                                          [{"type" => "asm_invoker",
@@ -526,12 +526,12 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Ruby backtraces (special form 1)" do
         JRuby = Object.new
-        @exception.stub(:backtrace).and_return(
+        allow(@exception).to receive(:backtrace).and_return(
             ["  rubyjit.ActionController::Rendering$$process_action_7EA12C1BF98F2835D4AE1311F8A1D948CBFB87DA.__file__(vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/rendering.rb:10)",
              "  rubyjit.ActiveSupport::TaggedLogging$$tagged!_2790A33722B3CBEBECECCFF90F769EB0F50B6FF2.chained_0_ensure_1$RUBY$__ensure__(vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/tagged_logging.rb:22)"]
         )
         Squash::Ruby.notify @exception
-        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+        expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
                                                      "faulted"   => true,
                                                      "backtrace" =>
                                                          [{"file"   => "vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/rendering.rb",
@@ -545,11 +545,11 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Ruby backtraces (special form 2)" do
         JRuby = Object.new
-        @exception.stub(:backtrace).and_return(
+        allow(@exception).to receive(:backtrace).and_return(
             ["  rubyjit$AbstractController::Callbacks$$process_action!_9E31DE6CC20BF4BD4675A39AC9F969A1DDA08377$block_0$RUBY$__file__.call(rubyjit$AbstractController::Callbacks$$process_action_9E31DE6CC20BF4BD4675A39AC9F969A1DDA08377$block_0$RUBY$__file__)"]
         )
         Squash::Ruby.notify @exception
-        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+        expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
                                                      "faulted"   => true,
                                                      "backtrace" =>
                                                          [{'type'   => 'jruby_block',
@@ -560,11 +560,11 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Ruby backtraces (special form 3)" do
         JRuby = Object.new
-        @exception.stub(:backtrace).and_return(
+        allow(@exception).to receive(:backtrace).and_return(
             ["  rubyjit.Squash::Ruby::ControllerMethods$$_squash_around_filter!_84CA00BB277BFC0F702CBE86BC4897E3CE15B5AA.chained_0_rescue_1$RUBY$SYNTHETIC__file__(vendor/bundle/jruby/1.9/gems/squash_rails-1.1.0/lib/squash/ruby/controller_methods.rb:138)"]
         )
         Squash::Ruby.notify @exception
-        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+        expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
                                                      "faulted"   => true,
                                                      "backtrace" =>
                                                          [{"file"   => "vendor/bundle/jruby/1.9/gems/squash_rails-1.1.0/lib/squash/ruby/controller_methods.rb",
@@ -575,12 +575,12 @@ describe Squash::Ruby do
 
       it "should properly tokenize JRuby Ruby backtraces (special form 4)" do
         JRuby = Object.new
-        @exception.stub(:backtrace).and_return(
+        allow(@exception).to receive(:backtrace).and_return(
             ["  rubyjit.ActionController::ImplicitRender$$send_action_9AF6F8FC466F72ECECBF8347A4DDB47F06FB9E8F.__file__(vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/implicit_render.rb)",
              "  rubyjit.ActiveSupport::Notifications::Instrumenter$$instrument!_2E2DDD0482328008F39B59E6DE8E25217A389086.chained_0_ensure_1$RUBY$__ensure__(vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/notifications/instrumenter.rb)"]
         )
         Squash::Ruby.notify @exception
-        JSON.parse(@body)['backtraces'].should eql([{"name"      => "Active Thread/Fiber",
+        expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
                                                      "faulted"   => true,
                                                      "backtrace" =>
                                                          [{"file"   => "vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/implicit_render.rb",
@@ -596,7 +596,7 @@ describe Squash::Ruby do
 
   describe '.ignore_exceptions' do
     it "should raise an error if not passed a block" do
-      lambda { Squash::Ruby.ignore_exceptions }.should raise_error(ArgumentError)
+      expect { Squash::Ruby.ignore_exceptions }.to raise_error(ArgumentError)
     end
 
     it "should not report any exceptions if not called with any arguments" do
@@ -606,10 +606,10 @@ describe Squash::Ruby do
           raise ArgumentError, "sploops"
         end
       rescue => err
-        err.send(:instance_variable_get, :@_squash_do_not_report).should be_true
+        expect(err.send(:instance_variable_get, :@_squash_do_not_report)).to be_true
         raised = true
       end
-      raised.should be_true
+      expect(raised).to be_true
     end
 
     it "should not report exceptions of the given classes" do
@@ -619,10 +619,10 @@ describe Squash::Ruby do
           raise RangeError, "sploops"
         end
       rescue RangeError => err
-        err.send(:instance_variable_get, :@_squash_do_not_report).should be_true
+        expect(err.send(:instance_variable_get, :@_squash_do_not_report)).to be_true
         raised = true
       end
-      raised.should be_true
+      expect(raised).to be_true
     end
 
     it "should report exceptions that are superclasses of the given classes" do
@@ -632,10 +632,10 @@ describe Squash::Ruby do
           raise "sploops"
         end
       rescue StandardError => err
-        err.send(:instance_variable_get, :@_squash_do_not_report).should be_false
+        expect(err.send(:instance_variable_get, :@_squash_do_not_report)).to be_false
         raised = true
       end
-      raised.should be_true
+      expect(raised).to be_true
     end
 
     it "should not report exceptions that are subclasses of the given classes" do
@@ -645,25 +645,25 @@ describe Squash::Ruby do
           raise FloatDomainError, "sploops"
         end
       rescue StandardError => err
-        err.send(:instance_variable_get, :@_squash_do_not_report).should be_nil
+        expect(err.send(:instance_variable_get, :@_squash_do_not_report)).to be_nil
         raised = true
       end
-      raised.should be_true
+      expect(raised).to be_true
     end
   end
 
   describe '.add_user_data' do
     it "should raise an error if not passed a block" do
-      lambda { Squash::Ruby.add_user_data(:foo => 'bar') }.should raise_error(ArgumentError)
+      expect { Squash::Ruby.add_user_data(:foo => 'bar') }.to raise_error(ArgumentError)
     end
 
     context "[check_user_data]" do
       it "should raise an error if the user data contains :bt" do
-        lambda { Squash::Ruby.add_user_data(:bt => 'bar') { 1 } }.should raise_error(ArgumentError)
+        expect { Squash::Ruby.add_user_data(:bt => 'bar') { 1 } }.to raise_error(ArgumentError)
       end
 
       it "should raise an error if the user data contains :mesg" do
-        lambda { Squash::Ruby.add_user_data(:mesg => 'bar') { 1 } }.should raise_error(ArgumentError)
+        expect { Squash::Ruby.add_user_data(:mesg => 'bar') { 1 } }.to raise_error(ArgumentError)
       end
     end
 
@@ -674,97 +674,97 @@ describe Squash::Ruby do
           raise "sploops"
         end
       rescue StandardError => err
-        err.send(:instance_variable_get, :@new_data).should eql('baz')
+        expect(err.send(:instance_variable_get, :@new_data)).to eql('baz')
         raised = true
       end
-      raised.should be_true
+      expect(raised).to be_true
     end
   end
 
   describe '.fail_silently' do
     it "should raise an error if not passed a block" do
-      lambda { Squash::Ruby.fail_silently }.should raise_error(ArgumentError)
+      expect { Squash::Ruby.fail_silently }.to raise_error(ArgumentError)
     end
 
     it "should report but not raise any exceptions if called with no arguments" do
-      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(ArgumentError), {})
-      lambda do
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(ArgumentError), {})
+      expect do
         Squash::Ruby.fail_silently { raise ArgumentError, "sploops" }
-      end.should_not raise_error
+      end.not_to raise_error
     end
 
     it "should report but not raise any exceptions if called with only options" do
-      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(ArgumentError), :foo => 'bar')
-      lambda do
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(ArgumentError), :foo => 'bar')
+      expect do
         Squash::Ruby.fail_silently(:foo => 'bar') { raise ArgumentError, "sploops" }
-      end.should_not raise_error
+      end.not_to raise_error
     end
 
     it "should only suppress exceptions of the given classes" do
-      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(RangeError), {})
-      lambda do
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(RangeError), {})
+      expect do
         Squash::Ruby.fail_silently(RangeError) { raise RangeError, "sploops" }
-      end.should_not raise_error
+      end.not_to raise_error
 
-      Squash::Ruby.should_not_receive(:notify)
-      lambda do
+      expect(Squash::Ruby).not_to receive(:notify)
+      expect do
         Squash::Ruby.fail_silently(RangeError) { raise ArgumentError, "sploops" }
-      end.should raise_error
+      end.to raise_error
     end
 
     it "should allow options" do
-      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(RangeError), :foo => 'bar')
-      lambda do
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(RangeError), :foo => 'bar')
+      expect do
         Squash::Ruby.fail_silently(RangeError, :foo => 'bar') { raise RangeError, "sploops" }
-      end.should_not raise_error
+      end.not_to raise_error
     end
 
     it "should not suppress exceptions that are superclasses of the given classes" do
-      Squash::Ruby.should_not_receive(:notify)
-      lambda do
+      expect(Squash::Ruby).not_to receive(:notify)
+      expect do
         Squash::Ruby.fail_silently(RangeError) { raise "sploops" }
-      end.should raise_error
+      end.to raise_error
     end
 
     it "should suppress exceptions that are subclasses of the given classes" do
-      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(FloatDomainError), {})
-      lambda do
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(FloatDomainError), {})
+      expect do
         Squash::Ruby.fail_silently(RangeError) { raise FloatDomainError, "sploops" }
-      end.should_not raise_error
+      end.not_to raise_error
     end
   end
 
   describe '.configure' do
     it "should set configuration values" do
       Squash::Ruby.configure :custom => 'config'
-      Squash::Ruby.send(:configuration, :custom).should eql('config')
+      expect(Squash::Ruby.send(:configuration, :custom)).to eql('config')
     end
 
     it "should allow string and symbol values" do
       Squash::Ruby.configure 'custom' => 'config'
-      Squash::Ruby.send(:configuration, :custom).should eql('config')
+      expect(Squash::Ruby.send(:configuration, :custom)).to eql('config')
     end
 
     it "should merge new values in with existing values" do
       Squash::Ruby.configure :custom => 'config', :custom2 => 'config2'
       Squash::Ruby.configure :custom => 'confignew', :custom3 => 'config3'
-      Squash::Ruby.send(:configuration, :custom).should eql('confignew')
-      Squash::Ruby.send(:configuration, :custom2).should eql('config2')
-      Squash::Ruby.send(:configuration, :custom3).should eql('config3')
+      expect(Squash::Ruby.send(:configuration, :custom)).to eql('confignew')
+      expect(Squash::Ruby.send(:configuration, :custom2)).to eql('config2')
+      expect(Squash::Ruby.send(:configuration, :custom3)).to eql('config3')
     end
   end
 
   describe ".notify_deploy" do
     it "should do nothing if Squash is disabled" do
       Squash::Ruby.configure :disabled => true
-      Squash::Ruby.should_not_receive :http_transmit
+      expect(Squash::Ruby).not_to receive :http_transmit
       Squash::Ruby.notify_deploy 'development', 'abc123', 'myhost.local'
     end
 
     it "should POST a notification to the deploy endpoint" do
       http = double('HTTP')
-      http.should_receive(:request).once.with do |request|
-        JSON.parse(request.body).should eql(
+      expect(http).to receive(:request).once.with { |request|
+        expect(JSON.parse(request.body)).to eql(
                                             'project'     => {'api_key' => 'foobar'},
                                             'environment' => {'name' => 'development'},
                                             'deploy'      => {
@@ -773,30 +773,30 @@ describe Squash::Ruby do
                                                 'hostname'    => 'myhost.local'
                                             }
                                         )
-      end.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+      }.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
       mock = double('Net::HTTP')
-      Net::HTTP.should_receive(:new).once.with('test.host', 80).and_return(mock)
-      mock.should_receive(:use_ssl=).once.with(false)
-      mock.stub(:open_timeout=)
-      mock.stub(:read_timeout=)
-      mock.should_receive(:start).once.and_yield(http)
+      expect(Net::HTTP).to receive(:new).once.with('test.host', 80).and_return(mock)
+      expect(mock).to receive(:use_ssl=).once.with(false)
+      allow(mock).to receive(:open_timeout=)
+      allow(mock).to receive(:read_timeout=)
+      expect(mock).to receive(:start).once.and_yield(http)
 
       Squash::Ruby.notify_deploy 'development', 'abc123', 'myhost.local'
     end
 
     it "should report an error given a bad response" do
       http = double('HTTP')
-      http.stub(:request).and_return(Net::HTTPNotFound.new('1.1', 404, 'Not Found'))
+      allow(http).to receive(:request).and_return(Net::HTTPNotFound.new('1.1', 404, 'Not Found'))
 
       mock = double('Net::HTTP')
-      Net::HTTP.should_receive(:new).once.with('test.host', 80).and_return(mock)
-      mock.should_receive(:use_ssl=).once.with(false)
-      mock.stub(:open_timeout=)
-      mock.stub(:read_timeout=)
-      mock.should_receive(:start).once.and_yield(http)
+      expect(Net::HTTP).to receive(:new).once.with('test.host', 80).and_return(mock)
+      expect(mock).to receive(:use_ssl=).once.with(false)
+      allow(mock).to receive(:open_timeout=)
+      allow(mock).to receive(:read_timeout=)
+      expect(mock).to receive(:start).once.and_yield(http)
 
-      $stderr.should_receive(:puts).once.with(/\[Squash\] Bad response/)
+      expect($stderr).to receive(:puts).once.with(/\[Squash\] Bad response/)
       Squash::Ruby.notify_deploy 'development', 'abc123', 'myhost.local'
       FileUtils.rm 'squash.failsafe.log'
     end
@@ -804,44 +804,44 @@ describe Squash::Ruby do
 
   it "should report a timeout to stderr" do
     http = double('HTTP')
-    http.stub(:request).and_raise(Timeout::Error)
+    allow(http).to receive(:request).and_raise(Timeout::Error)
 
     mock = double('Net::HTTP')
-    Net::HTTP.should_receive(:new).once.with('test.host', 80).and_return(mock)
-    mock.should_receive(:use_ssl=).once.with(false)
-    mock.stub(:open_timeout=)
-    mock.stub(:read_timeout=)
-    mock.should_receive(:start).once.and_yield(http)
+    expect(Net::HTTP).to receive(:new).once.with('test.host', 80).and_return(mock)
+    expect(mock).to receive(:use_ssl=).once.with(false)
+    allow(mock).to receive(:open_timeout=)
+    allow(mock).to receive(:read_timeout=)
+    expect(mock).to receive(:start).once.and_yield(http)
 
-    $stderr.should_receive(:puts).once.with(/\[Squash\] Timeout/)
+    expect($stderr).to receive(:puts).once.with(/\[Squash\] Timeout/)
     Squash::Ruby.notify_deploy 'development', 'abc123', 'myhost.local'
   end
 
   describe ".record" do
     it "should accept an exception class, message, and options" do
-      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(ArgumentError), :foo => 'bar') do |exc, *other|
-        exc.to_s.should eql('foobar')
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(ArgumentError), :foo => 'bar') do |exc, *other|
+        expect(exc.to_s).to eql('foobar')
       end
       Squash::Ruby.record ArgumentError, "foobar", :foo => 'bar'
     end
 
     it "should accept an exception class and message" do
-      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(ArgumentError), {}) do |exc, *other|
-        exc.to_s.should eql('foobar')
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(ArgumentError), {}) do |exc, *other|
+        expect(exc.to_s).to eql('foobar')
       end
       Squash::Ruby.record ArgumentError, "foobar"
     end
 
     it "should accept a message and options" do
-      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(StandardError), :foo => 'bar') do |exc, *other|
-        exc.to_s.should eql('foobar')
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(StandardError), :foo => 'bar') do |exc, *other|
+        expect(exc.to_s).to eql('foobar')
       end
       Squash::Ruby.record "foobar", :foo => 'bar'
     end
 
     it "should accept a message" do
-      Squash::Ruby.should_receive(:notify).once.with(an_instance_of(StandardError), {}) do |exc, *other|
-        exc.to_s.should eql('foobar')
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(StandardError), {}) do |exc, *other|
+        expect(exc.to_s).to eql('foobar')
       end
       Squash::Ruby.record "foobar"
     end
@@ -858,13 +858,13 @@ describe Squash::Ruby do
       it "should return the contents of the revision file" do
         File.open('test_file', 'w') { |f| f.puts 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
         Squash::Ruby.configure :revision_file => 'test_file'
-        Squash::Ruby.current_revision.should eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+        expect(Squash::Ruby.current_revision).to eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
       end
 
       it "should raise an exception for an improperly-formatted revision file" do
         File.open('test_file', 'w') { |f| f.puts 'halp!' }
         Squash::Ruby.configure :revision_file => 'test_file'
-        lambda { Squash::Ruby.current_revision }.should raise_error(/Unknown Git revision/)
+        expect { Squash::Ruby.current_revision }.to raise_error(/Unknown Git revision/)
       end
     end
 
@@ -872,12 +872,12 @@ describe Squash::Ruby do
       it "should return the revision" do
         Squash::Ruby.configure :revision      => 'cb586586d2882ebfb5e892c8fc558ada8d2faf95',
                                :revision_file => 'test_file'
-        Squash::Ruby.current_revision.should eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+        expect(Squash::Ruby.current_revision).to eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
       end
 
       it "should raise an exception for an improperly-formatted revision" do
         Squash::Ruby.configure :revision => 'hello'
-        lambda { Squash::Ruby.current_revision }.should raise_error(/Unknown Git revision/)
+        expect { Squash::Ruby.current_revision }.to raise_error(/Unknown Git revision/)
       end
     end
 
@@ -885,14 +885,14 @@ describe Squash::Ruby do
       it "should return the HEAD if it is a commit" do
         FileUtils.mkdir_p '.git'
         File.open('.git/HEAD', 'w') { |f| f.puts 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
-        Squash::Ruby.current_revision.should eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+        expect(Squash::Ruby.current_revision).to eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
       end
 
       it "should return the contents of the ref file if HEAD is a ref" do
         FileUtils.mkdir_p '.git/refs/heads'
         File.open('.git/HEAD', 'w') { |f| f.puts 'ref: refs/heads/branch' }
         File.open('.git/refs/heads/branch', 'w') { |f| f.puts 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
-        Squash::Ruby.current_revision.should eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+        expect(Squash::Ruby.current_revision).to eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
       end
 
       it "should search in packed-refs if HEAD is a ref" do
@@ -906,18 +906,18 @@ cb586586d2882ebfb5e892c8fc558ada8d2faf95 refs/heads/branch
 cb586586d2882ebfb5e892c8fc558ada8d2faf96 refs/heads/other
           REFS
         end
-        Squash::Ruby.current_revision.should eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+        expect(Squash::Ruby.current_revision).to eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
       end
 
       it "should use `git rev-parse` otherwise" do
         FileUtils.mkdir_p '.git'
         File.open('.git/HEAD', 'w') { |f| f.puts 'ref: refs/heads/unknown' }
-        Squash::Ruby.should_receive(:`).once.with('git rev-parse refs/heads/unknown').and_return('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
-        Squash::Ruby.current_revision.should eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+        expect(Squash::Ruby).to receive(:`).once.with('git rev-parse refs/heads/unknown').and_return('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+        expect(Squash::Ruby.current_revision).to eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
       end
 
       it "should raise an exception if not running in a Git repo" do
-        lambda { Squash::Ruby.current_revision }.should raise_error(/You must set the :revision_file configuration/)
+        expect { Squash::Ruby.current_revision }.to raise_error(/You must set the :revision_file configuration/)
       end
     end
   end

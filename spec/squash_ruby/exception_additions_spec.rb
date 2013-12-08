@@ -19,23 +19,23 @@ describe Exception do
   describe ".new" do
     it "should behave like the original method" do
       e = Exception.new("Hello!")
-      e.should be_kind_of(Exception)
-      e.to_s.should eql("Hello!")
+      expect(e).to be_kind_of(Exception)
+      expect(e.to_s).to eql("Hello!")
     end
 
     it "should accept user data" do
       e = Exception.new("Hello!", :foo => 'bar')
-      e.should be_kind_of(Exception)
-      e.to_s.should eql("Hello!")
-      e.send(:instance_variable_get, :@foo).should eql('bar')
+      expect(e).to be_kind_of(Exception)
+      expect(e.to_s).to eql("Hello!")
+      expect(e.send(:instance_variable_get, :@foo)).to eql('bar')
     end
 
     it "should not accept the :bt key" do
-      lambda { Exception.new 'foo', :bt => 'bar' }.should raise_error(ArgumentError)
+      expect { Exception.new 'foo', :bt => 'bar' }.to raise_error(ArgumentError)
     end
 
     it "should not accept the :mesg key" do
-      lambda { Exception.new 'foo', :mesg => 'bar' }.should raise_error(ArgumentError)
+      expect { Exception.new 'foo', :mesg => 'bar' }.to raise_error(ArgumentError)
     end
   end
 
@@ -46,15 +46,15 @@ describe Exception do
 
     it "should set user data" do
       @exception.user_data(:foo => 'bar')
-      @exception.send(:instance_variable_get, :@foo).should eql('bar')
+      expect(@exception.send(:instance_variable_get, :@foo)).to eql('bar')
     end
 
     it "should not accept the :bt key" do
-      lambda { @exception.user_data :bt => 'bar' }.should raise_error(ArgumentError)
+      expect { @exception.user_data :bt => 'bar' }.to raise_error(ArgumentError)
     end
 
     it "should not accept the :mesg key" do
-      lambda { @exception.user_data :mesg => 'bar' }.should raise_error(ArgumentError)
+      expect { @exception.user_data :mesg => 'bar' }.to raise_error(ArgumentError)
     end
   end
 end
