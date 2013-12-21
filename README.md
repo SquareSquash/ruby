@@ -177,6 +177,9 @@ options override `repository_root`.
   it's set to `/api/1.0/notify`.
 * `transmit_timeout`: The amount of time to wait before giving up on trasmitting
   an error. By default this is treated as both an open and a read timeout.
+* `max_variable_size`: The maximum size (in bytes) of a serialized
+  representation of a value that will be transmitted over the network. Values
+  that serialize to larger than this size will be replaced with a placeholder.
 
 ### Ignored Exceptions
 

@@ -588,7 +588,7 @@ module Squash
         inspect_result = begin filtered.inspect; rescue Exception => e; "[#{e.class}: #{e} raised when calling #inspect]" end
         to_s_result    = begin filtered.to_s; rescue Exception => e; "[#{e.class}: #{e} raised when calling #to_s]" end
 
-        {
+        serialized = {
             'language'   => 'ruby',
             'class_name' => filtered.class.to_s,
             'inspect'    => inspect_result,
@@ -596,6 +596,20 @@ module Squash
             'json'       => json,
             'to_s'       => to_s_result
         }
+
+        elements_only ? serialized : check_size(serialized)
+      end
+    end
+
+    def self.check_size(value)
+      if configuration(:max_variable_size)
+        value.each do |format, representation|
+          if representation.bytesize > configuration(:max_variable_size)
+            value[format] = '[exceeded maximum variable size]'
+          end
+        end
+      else
+        value
       end
     end
 

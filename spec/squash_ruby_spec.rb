@@ -216,6 +216,54 @@ describe Squash::Ruby do
         end
         expect(Squash::Ruby.valueify(obj)['to_s']).to eql("[ArgumentError: oops! raised when calling #to_s]")
       end
+
+      context '[max_variable_size set]' do
+        before(:each) { Squash::Ruby.configure :max_variable_size => 10 }
+
+        it "should filter large values" do
+          expect(Squash::Ruby.valueify(%w(123456))).
+              to eql('yaml'       => '[exceeded maximum variable size]',
+                     'inspect'    => '["123456"]',
+                     'json'       => '["123456"]',
+                     'to_s'       => '123456',
+                     'class_name' => 'Array',
+                     'language'   => 'ruby')
+          expect(Squash::Ruby.valueify(%w(1234567))).
+              to eql('yaml'       => '[exceeded maximum variable size]',
+                     'inspect'    => '[exceeded maximum variable size]',
+                     'json'       => '[exceeded maximum variable size]',
+                     'to_s'       => '1234567',
+                     'class_name' => 'Array',
+                     'language'   => 'ruby'
+                 )
+        end
+
+        it "should only filter large nested values when elements_only is set" do
+          value = {
+              'short' => %w(123456),
+              'long'  => %w(1234567)
+          }
+          expect(Squash::Ruby.valueify(value, true)).
+              to eql(
+                     'long'  => {
+                         'yaml'       => '[exceeded maximum variable size]',
+                         'inspect'    => '[exceeded maximum variable size]',
+                         'json'       => '[exceeded maximum variable size]',
+                         'to_s'       => '1234567',
+                         'class_name' => 'Array',
+                         'language'   => 'ruby'
+                     },
+                     'short' => {
+                         'yaml'       => '[exceeded maximum variable size]',
+                         'inspect'    => '["123456"]',
+                         'json'       => '["123456"]',
+                         'to_s'       => '123456',
+                         'class_name' => 'Array',
+                         'language'   => 'ruby'
+                     }
+                 )
+        end
+      end
     end
 
     context "[http_transmit]" do
