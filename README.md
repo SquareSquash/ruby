@@ -154,6 +154,8 @@ keys:
 * `environment`: The environment that exceptions will be associated with.
 * `project_root`: The path to your project's root directory. This path will be
   stripped from backtrace lines. By default it's set to the working directory.
+* `mirrored_repository`: Set this option to be true if your repository root is a
+  mirrored Git repository.
 
 ### Revision Information
 

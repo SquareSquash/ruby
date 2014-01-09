@@ -674,7 +674,11 @@ module Squash
                  elsif configuration(:revision_file)
                    File.read(configuration(:revision_file)).chomp.strip
                  else
-                   head_file = File.join(configuration(:repository_root), '.git', 'HEAD')
+                   if configuration(:mirrored_repository)
+                     head_file = File.join(configuration(:repository_root), 'HEAD')
+                   else
+                     head_file = File.join(configuration(:repository_root), '.git', 'HEAD')
+                   end
                    if File.exist?(head_file)
                      rev = File.read(head_file).chomp.strip
                      if rev =~ /^ref: (.+?)$/

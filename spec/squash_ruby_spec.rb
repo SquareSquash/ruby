@@ -930,6 +930,21 @@ describe Squash::Ruby do
     end
 
     context "[no revision file specified]" do
+      it "should use .git/HEAD if it is not a mirrored repository" do
+        FileUtils.mkdir_p '/tmp/.git'
+        Squash::Ruby.configure :repository_root => '/tmp/'
+        File.open('/tmp/.git/HEAD', 'w') { |f| f.puts 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
+        expect(Squash::Ruby.current_revision).to eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+      end
+
+      it "should use HEAD if it is a mirrored repository" do
+        FileUtils.mkdir_p '/tmp'
+        Squash::Ruby.configure :mirrored_repository => true
+        Squash::Ruby.configure :repository_root => '/tmp/'
+        File.open('/tmp/HEAD', 'w') { |f| f.puts 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
+        expect(Squash::Ruby.current_revision).to eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
+      end
+
       it "should return the HEAD if it is a commit" do
         FileUtils.mkdir_p '.git'
         File.open('.git/HEAD', 'w') { |f| f.puts 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
