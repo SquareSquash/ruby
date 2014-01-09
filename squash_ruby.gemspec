@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = "squash_ruby"
-  s.version = "1.3.0"
+  s.version = "1.4.0"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Tim Morgan"]
-  s.date = "2013-12-21"
+  s.date = "2014-01-09"
   s.description = "This client library records Ruby exceptions to Squash."
   s.email = "tim@squareup.com"
   s.extra_rdoc_files = [
@@ -26,7 +26,7 @@ Gem::Specification.new do |s|
   s.homepage = "http://github.com/SquareSquash/ruby"
   s.licenses = ["Apache 2.0"]
   s.require_paths = ["lib"]
-  s.rubygems_version = "2.0.11"
+  s.rubygems_version = "2.0.14"
   s.summary = "Squash client for Ruby projects"
 
   if s.respond_to? :specification_version then
