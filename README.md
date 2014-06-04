@@ -182,6 +182,10 @@ options override `repository_root`.
 * `max_variable_size`: The maximum size (in bytes) of a serialized
   representation of a value that will be transmitted over the network. Values
   that serialize to larger than this size will be replaced with a placeholder.
+* `timeout_protection`: a `proc { |timeout, &block| ... }` that runs the given
+  block, and times out after `timeout` seconds.  By default this will use
+  `SystemTimer` if present, or else the built in `Timeout` class, but can be
+  overridden to provide more fine grain logic around timeouts.
 
 ### Ignored Exceptions
 
@@ -222,11 +226,6 @@ By default, `Net::HTTP` is used to transmit errors to the API server. If you
 would prefer to use your own HTTP library, you can override the
 {Squash::Ruby.http_transmit} method. This method is also used for deploy
 notification.
-
-By default, if `SystemTimer` is present, then it is used to wrap the http
-request and raise an error if it takes to long.  Otherwise the built in
-`Timeout` class is used.  You can override the {Squash::Ruby.with_timeout}
-method to provide your own timeout protection for the request.
 
 Failsafe Reporting
 ------------------

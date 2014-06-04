@@ -40,7 +40,10 @@ module Squash
         :ignored_exception_procs    => [],
         :failsafe_log               => "squash.failsafe.log",
         :repository_root            => Dir.getwd,
-        :project_root               => Dir.getwd
+        :project_root               => Dir.getwd,
+        :timeout_protection         => proc { |timeout, &block|
+                                         timeout_protection(timeout, &block)
+                                       },
     }
     # Types that are serialized directly to JSON, rather than to a hash of
     # object information. Subclasses are not considered members of this array.
@@ -324,7 +327,7 @@ module Squash
       http_options(uri).each { |k, v| http.send :"#{k}=", v }
 
       timeout = configuration(:open_timeout) + configuration(:transmit_timeout)
-      with_timeout(timeout) do
+      configuration(:timeout_protection).call(timeout) do
         http.start do |http|
           request = Net::HTTP::Post.new(uri.request_uri)
           request.add_field 'Content-Type', 'application/json'
@@ -338,28 +341,6 @@ module Squash
             return false
           end
         end
-      end
-    end
-
-    # Runs the given block with the specified timeout. This method is used
-    # internally only. It is documented so that, in the event you wish to use
-    # an alternative Timeout library (other than Timeout or SystemTimer), you
-    # can override this method.
-    #
-    # If a timeout is triggered, an instance of Timeout::Error should be
-    # raised.
-    #
-    # @param [Float] timeout The number of seconds to wait before timing out
-    # @yield The code to run with timeout protection
-    # @return [true, false] Whether or not the response was successful.
-    # @raise [Timeout::Error] If the block does not complete before the
-    #   specified number of seconds.
-
-    def self.with_timeout(timeout, &block)
-      if defined?(SystemTimer)
-        SystemTimer.timeout_after(timeout, &block)
-      else
-        Timeout.timeout(timeout, &block)
       end
     end
 
@@ -738,5 +719,15 @@ module Squash
 
     # @private
     def self.client_name() 'ruby' end
+
+    # @private
+    def self.timeout_protection(timeout, &block)
+      if defined?(SystemTimer)
+        SystemTimer.timeout_after(timeout, &block)
+      else
+        Timeout.timeout(timeout, &block)
+      end
+    end
+
   end
 end
