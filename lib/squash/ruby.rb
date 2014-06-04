@@ -323,7 +323,8 @@ module Squash
 
       http_options(uri).each { |k, v| http.send :"#{k}=", v }
 
-      block = proc do
+      timeout = configuration(:open_timeout) + configuration(:transmit_timeout)
+      with_timeout(timeout) do
         http.start do |http|
           request = Net::HTTP::Post.new(uri.request_uri)
           request.add_field 'Content-Type', 'application/json'
@@ -338,11 +339,27 @@ module Squash
           end
         end
       end
+    end
 
+    # Runs the given block with the specified timeout. This method is used
+    # internally only. It is documented so that, in the event you wish to use
+    # an alternative Timeout library (other than Timeout or SystemTimer), you
+    # can override this method.
+    #
+    # If a timeout is triggered, an instance of Timeout::Error should be
+    # raised.
+    #
+    # @param [Float] timeout The number of seconds to wait before timing out
+    # @yield The code to run with timeout protection
+    # @return [true, false] Whether or not the response was successful.
+    # @raise [Timeout::Error] If the block does not complete before the
+    #   specified number of seconds.
+
+    def self.with_timeout(timeout, &block)
       if defined?(SystemTimer)
-        SystemTimer.timeout_after((configuration(:open_timeout) + configuration(:transmit_timeout)), &block)
+        SystemTimer.timeout_after(timeout, &block)
       else
-        Timeout.timeout((configuration(:open_timeout) + configuration(:transmit_timeout)), &block)
+        Timeout.timeout(timeout, &block)
       end
     end
 

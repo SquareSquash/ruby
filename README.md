@@ -223,6 +223,11 @@ would prefer to use your own HTTP library, you can override the
 {Squash::Ruby.http_transmit} method. This method is also used for deploy
 notification.
 
+By default, if `SystemTimer` is present, then it is used to wrap the http
+request and raise an error if it takes to long.  Otherwise the built in
+`Timeout` class is used.  You can override the {Squash::Ruby.with_timeout}
+method to provide your own timeout protection for the request.
+
 Failsafe Reporting
 ------------------
 
