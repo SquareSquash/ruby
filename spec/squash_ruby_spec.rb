@@ -221,18 +221,21 @@ describe Squash::Ruby do
         before(:each) { Squash::Ruby.configure :max_variable_size => 10 }
 
         it "should filter large values" do
+          tos = (RUBY_VERSION < '1.9.0') ? '123456' : '["123456"]'
           expect(Squash::Ruby.valueify(%w(123456))).
               to eql('yaml'       => '[exceeded maximum variable size]',
                      'inspect'    => '["123456"]',
                      'json'       => '["123456"]',
-                     'to_s'       => '123456',
+                     'to_s'       => tos,
                      'class_name' => 'Array',
                      'language'   => 'ruby')
+
+          tos = (RUBY_VERSION < '1.9.0') ? '1234567' : '[exceeded maximum variable size]'
           expect(Squash::Ruby.valueify(%w(1234567))).
               to eql('yaml'       => '[exceeded maximum variable size]',
                      'inspect'    => '[exceeded maximum variable size]',
                      'json'       => '[exceeded maximum variable size]',
-                     'to_s'       => '1234567',
+                     'to_s'       => tos,
                      'class_name' => 'Array',
                      'language'   => 'ruby'
                  )
@@ -243,13 +246,15 @@ describe Squash::Ruby do
               'short' => %w(123456),
               'long'  => %w(1234567)
           }
+          long_tos  = (RUBY_VERSION < '1.9.0') ? '1234567' : '[exceeded maximum variable size]'
+          short_tos = (RUBY_VERSION < '1.9.0') ? '123456' : '["123456"]'
           expect(Squash::Ruby.valueify(value, true)).
               to eql(
                      'long'  => {
                          'yaml'       => '[exceeded maximum variable size]',
                          'inspect'    => '[exceeded maximum variable size]',
                          'json'       => '[exceeded maximum variable size]',
-                         'to_s'       => '1234567',
+                         'to_s'       => long_tos,
                          'class_name' => 'Array',
                          'language'   => 'ruby'
                      },
@@ -257,7 +262,7 @@ describe Squash::Ruby do
                          'yaml'       => '[exceeded maximum variable size]',
                          'inspect'    => '["123456"]',
                          'json'       => '["123456"]',
-                         'to_s'       => '123456',
+                         'to_s'       => short_tos,
                          'class_name' => 'Array',
                          'language'   => 'ruby'
                      }
