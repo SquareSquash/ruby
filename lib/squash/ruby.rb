@@ -40,7 +40,10 @@ module Squash
         :ignored_exception_procs    => [],
         :failsafe_log               => "squash.failsafe.log",
         :repository_root            => Dir.getwd,
-        :project_root               => Dir.getwd
+        :project_root               => Dir.getwd,
+        :timeout_protection         => proc { |timeout, &block|
+                                         timeout_protection(timeout, &block)
+                                       },
     }
     # Types that are serialized directly to JSON, rather than to a hash of
     # object information. Subclasses are not considered members of this array.
@@ -323,7 +326,8 @@ module Squash
 
       http_options(uri).each { |k, v| http.send :"#{k}=", v }
 
-      block = proc do
+      timeout = configuration(:open_timeout) + configuration(:transmit_timeout)
+      configuration(:timeout_protection).call(timeout) do
         http.start do |http|
           request = Net::HTTP::Post.new(uri.request_uri)
           request.add_field 'Content-Type', 'application/json'
@@ -337,12 +341,6 @@ module Squash
             return false
           end
         end
-      end
-
-      if defined?(SystemTimer)
-        SystemTimer.timeout_after((configuration(:open_timeout) + configuration(:transmit_timeout)), &block)
-      else
-        Timeout.timeout((configuration(:open_timeout) + configuration(:transmit_timeout)), &block)
       end
     end
 
@@ -721,5 +719,15 @@ module Squash
 
     # @private
     def self.client_name() 'ruby' end
+
+    # @private
+    def self.timeout_protection(timeout, &block)
+      if defined?(SystemTimer)
+        SystemTimer.timeout_after(timeout, &block)
+      else
+        Timeout.timeout(timeout, &block)
+      end
+    end
+
   end
 end

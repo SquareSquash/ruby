@@ -182,6 +182,10 @@ options override `repository_root`.
 * `max_variable_size`: The maximum size (in bytes) of a serialized
   representation of a value that will be transmitted over the network. Values
   that serialize to larger than this size will be replaced with a placeholder.
+* `timeout_protection`: a `proc { |timeout, &block| ... }` that runs the given
+  block, and times out after `timeout` seconds.  By default this will use
+  `SystemTimer` if present, or else the built in `Timeout` class, but can be
+  overridden to provide more fine grain logic around timeouts.
 
 ### Ignored Exceptions
 

@@ -389,6 +389,26 @@ describe Squash::Ruby do
         ENV['no_proxy']   = no_proxy
       end
 
+      it "should allowing overriding the timeout_protection used" do
+        http = double('Net:HTTP')
+        expect(http).to receive(:request).with { |req|
+          req.path == '/api/1.0/notify' &&
+              req.body.size > 0
+        }.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+
+        mock = double('Net::HTTP')
+        expect(Net::HTTP).to receive(:new).once.with('squash.example.com', 443).and_return(mock)
+        expect(mock).to receive(:open_timeout=).once.with(15)
+        expect(mock).to receive(:read_timeout=).once.with(15)
+        allow(mock).to receive(:use_ssl=)
+        expect(mock).to receive(:start).once.and_yield(http)
+
+        Squash::Ruby.configure :timeout_protection => proc { |timeout, &block| block.call }
+        expect(Timeout).not_to receive(:timeout)
+
+        Squash::Ruby.notify @exception
+      end
+
       context "[request body]" do
         before :each do
           @exception.send :instance_variable_set, :@custom_ivar, 'foobar'
