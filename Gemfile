@@ -9,7 +9,7 @@ group :development do
 
   # DOCS
   gem 'yard', :require => nil
-  gem 'redcarpet'
+  gem 'redcarpet', platform: :mri
 
   # DEVELOPMENT
   gem 'jeweler', :github => 'technicalpickles/jeweler'
