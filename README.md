@@ -159,7 +159,7 @@ keys:
   behavior when an exception is raised in an environment where Squash is
   disabled (typically development and test). Values are `ignore` (default):
   exception is ignored; `raise`: exception is raised; and `log`: exception is
-  logged at the error level to the Rails log.
+  logged at the error level to the failsafe log.
 
 ### Revision Information
 
