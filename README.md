@@ -19,8 +19,7 @@ documentation at https://github.com/SquareSquash/web.
 Compatibility
 -------------
 
-This library is compatible with Ruby 1.8.6 and later, including Ruby Enterprise
-Edition.
+This library is compatible with Ruby 1.9.2 and later, including JRuby.
 
 Requirements
 ------------

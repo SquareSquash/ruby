@@ -37,17 +37,17 @@ describe Squash::Ruby do
     it "should return false if Squash is disabled" do
       Squash::Ruby.configure :disabled => true
       expect(Squash::Ruby).not_to receive(:http_transmit)
-      expect(Squash::Ruby.notify(@exception)).to be_false
+      expect(Squash::Ruby.notify(@exception)).to eql(false)
     end
 
     it "should return false if the exception has no backtrace" do
       expect(Squash::Ruby).not_to receive(:http_transmit)
-      expect(Squash::Ruby.notify(StandardError.new)).to be_false
+      expect(Squash::Ruby.notify(StandardError.new)).to eql(false)
     end
 
     it "should return false if the exception is not an exception" do
       expect(Squash::Ruby).not_to receive(:http_transmit)
-      expect(Squash::Ruby.notify("wut is this?!")).to be_false
+      expect(Squash::Ruby.notify("wut is this?!")).to eql(false)
     end
 
     it "should raise an exception if the API key is not configured" do
@@ -76,21 +76,21 @@ describe Squash::Ruby do
       end
 
       it "should unroll wrapped exceptions" do
-        expect(Squash::Ruby).to receive(:http_transmit).with { |_, _, body|
-          JSON.parse(body)['class_name'] == 'RangeError'
-        }
+        expect(Squash::Ruby).to receive(:http_transmit) do |_, _, body|
+          expect(JSON.parse(body)['class_name']).to eql('RangeError')
+        end
         Squash::Ruby.notify @exception
       end
 
       it "should include parent exception information" do
-        expect(Squash::Ruby).to receive(:http_transmit).with { |_, _, body|
-          JSON.parse(body)['parent_exceptions'].size == 1 &&
-              JSON.parse(body)['parent_exceptions'].first['class_name'] == 'ArgumentError' &&
-              JSON.parse(body)['parent_exceptions'].first['association'] == 'original_exception' &&
-              JSON.parse(body)['parent_exceptions'].first['message'] == 'Sploops!' &&
-              JSON.parse(body)['parent_exceptions'].first.include?('ivars') &&
-              JSON.parse(body)['parent_exceptions'].first.include?('backtraces')
-        }
+        expect(Squash::Ruby).to receive(:http_transmit) do |_, _, body|
+          expect(JSON.parse(body)['parent_exceptions'].size).to eql(1)
+          expect(JSON.parse(body)['parent_exceptions'].first['class_name']).to eql('ArgumentError')
+          expect(JSON.parse(body)['parent_exceptions'].first['association']).to eql('original_exception')
+          expect(JSON.parse(body)['parent_exceptions'].first['message']).to eql('Sploops!')
+          expect(JSON.parse(body)['parent_exceptions'].first).to include('ivars')
+          expect(JSON.parse(body)['parent_exceptions'].first).to include('backtraces')
+        end
         Squash::Ruby.notify @exception
       end
     end
@@ -99,7 +99,7 @@ describe Squash::Ruby do
       it "should return true if the exception is ignored because of an ignore block" do
         @exception.instance_variable_set :@_squash_do_not_report, true
         expect(Squash::Ruby).not_to receive(:http_transmit)
-        expect(Squash::Ruby.notify(@exception)).to be_false
+        expect(Squash::Ruby.notify(@exception)).to eql(false)
       end
 
       ['ArgumentError', %w( ArgumentError ), '::ArgumentError', 'StandardError', ArgumentError].each do |klass|
@@ -107,14 +107,14 @@ describe Squash::Ruby do
           it "should return true if the exception is ignored because of the ignored-exceptions configuration" do
             Squash::Ruby.configure :ignored_exception_classes => klass
             expect(Squash::Ruby).not_to receive(:http_transmit)
-            expect(Squash::Ruby.notify(@exception)).to be_false
+            expect(Squash::Ruby.notify(@exception)).to eql(false)
           end
 
           if klass.kind_of?(String)
             it "should return true if the exception is ignored because of the ignored-exception-messages configuration (string)" do
               Squash::Ruby.configure :ignored_exception_messages => {klass => 'oo'}
               expect(Squash::Ruby).not_to receive(:http_transmit)
-              expect(Squash::Ruby.notify(@exception)).to be_false
+              expect(Squash::Ruby.notify(@exception)).to eql(false)
             end
           end
         end
@@ -123,30 +123,30 @@ describe Squash::Ruby do
       it "should return true if the exception is ignored because of the ignored-exception-messages configuration (regexp)" do
         Squash::Ruby.configure :ignored_exception_messages => {'ArgumentError' => /oo/}
         expect(Squash::Ruby).not_to receive(:http_transmit)
-        expect(Squash::Ruby.notify(@exception)).to be_false
+        expect(Squash::Ruby.notify(@exception)).to eql(false)
       end
 
       it "should return true if the exception is ignored because of the ignored-exception-procs configuration" do
         Squash::Ruby.configure :ignored_exception_procs => lambda { |error, user_data| error.kind_of?(ArgumentError) && user_data[:foo] == 'bar' }
 
         expect(Squash::Ruby).to receive(:http_transmit).once
-        expect(Squash::Ruby.notify(@exception, :foo => 'bar')).to be_false
-        expect(Squash::Ruby.notify(@exception, :foo => 'baz')).to be_true
+        expect(Squash::Ruby.notify(@exception, :foo => 'bar')).to eql(false)
+        expect(Squash::Ruby.notify(@exception, :foo => 'baz')).to eql(true)
       end
     end
 
     context "[check_user_data]" do
       it "should raise an error if the user data contains :bt" do
-        expect(Squash::Ruby).to receive(:failsafe_handler).with { |_, error|
-          error.to_s.include? 'bt'
-        }
+        expect(Squash::Ruby).to receive(:failsafe_handler) do |_, error|
+          expect(error.to_s).to include('bt')
+        end
         Squash::Ruby.notify @exception, :bt => 'foo'
       end
 
       it "should raise an error if the user data contains :mesg" do
-        expect(Squash::Ruby).to receive(:failsafe_handler).with { |_, error|
-          error.to_s.include? 'mesg'
-        }
+        expect(Squash::Ruby).to receive(:failsafe_handler) do |_, error|
+          expect(error.to_s).to include('mesg')
+        end
         Squash::Ruby.notify @exception, :mesg => 'foo'
       end
     end
@@ -158,11 +158,11 @@ describe Squash::Ruby do
         yaml = (defined?(JRuby) && RUBY_VERSION >= '1.9.0') ? "--- !ruby/regexp '/Hello, world!/'\n" : "--- !ruby/regexp /Hello, world!/\n"
         yaml << "...\n" if RUBY_VERSION >= '1.9.0' && !defined?(JRuby)
         expect(Squash::Ruby.valueify(/Hello, world!/)).to eql("language"   => "ruby",
-                                                          "inspect"    => "/Hello, world!/",
-                                                          "yaml"       => yaml,
-                                                          "class_name" => "Regexp",
-                                                          "json"       => "\"(?-mix:Hello, world!)\"",
-                                                          "to_s"       => "(?-mix:Hello, world!)")
+                                                              "inspect"    => "/Hello, world!/",
+                                                              "yaml"       => yaml,
+                                                              "class_name" => "Regexp",
+                                                              "json"       => "\"(?-mix:Hello, world!)\"",
+                                                              "to_s"       => "(?-mix:Hello, world!)")
       end
 
       it "should not convert JSON primitives" do
@@ -177,12 +177,12 @@ describe Squash::Ruby do
         tos  = (RUBY_VERSION < '1.9.0') ? "foobar" : '{"foo"=>"bar"}'
         yaml = (RUBY_VERSION < '1.9.0') ? "--- \nfoo: bar\n" : "---\nfoo: bar\n"
         expect(Squash::Ruby.valueify("hello" => "world")).to eql({
-                                                                 "inspect"    => "{\"foo\"=>\"bar\"}",
-                                                                 "json"       => "{\"foo\":\"bar\"}",
-                                                                 "yaml"       => yaml,
-                                                                 "language"   => "ruby",
-                                                                 "to_s"       => tos,
-                                                                 "class_name" => "Hash"})
+                                                                     "inspect"    => "{\"foo\"=>\"bar\"}",
+                                                                     "json"       => "{\"foo\":\"bar\"}",
+                                                                     "yaml"       => yaml,
+                                                                     "language"   => "ruby",
+                                                                     "to_s"       => tos,
+                                                                     "class_name" => "Hash"})
       end
 
       it "should gracefully recover from exceptions raised when calling #to_json" do
@@ -242,7 +242,7 @@ describe Squash::Ruby do
         end
 
         it "should only filter large nested values when elements_only is set" do
-          value = {
+          value     = {
               'short' => %w(123456),
               'long'  => %w(1234567)
           }
@@ -280,10 +280,10 @@ describe Squash::Ruby do
 
       it "should transmit to the API endpoint" do
         http = double('Net:HTTP')
-        expect(http).to receive(:request).with { |req|
-          req.path == '/api/1.0/notify' &&
-              req.body.size > 0
-        }.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+        expect(http).to receive(:request) do |req|
+          expect(req.path).to eql('/api/1.0/notify')
+          expect(req.body.size).to be > 0
+        end.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
         mock = double('Net::HTTP')
         expect(Net::HTTP).to receive(:new).once.with('squash.example.com', 443).and_return(mock)
@@ -391,10 +391,10 @@ describe Squash::Ruby do
 
       it "should allowing overriding the timeout_protection used" do
         http = double('Net:HTTP')
-        expect(http).to receive(:request).with { |req|
-          req.path == '/api/1.0/notify' &&
-              req.body.size > 0
-        }.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+        expect(http).to receive(:request) do |req|
+          expect(req.path).to eql('/api/1.0/notify')
+          expect(req.body.size).to be > 0
+        end.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
         mock = double('Net::HTTP')
         expect(Net::HTTP).to receive(:new).once.with('squash.example.com', 443).and_return(mock)
@@ -445,14 +445,14 @@ describe Squash::Ruby do
           bt         = @exception.backtrace.reject { |line| line.include?('.java') }
           serialized = @json['backtraces'].first['backtrace'].reject { |elem| elem['type'] }
           expect(serialized).to eql(bt.map do |element|
-            file, line, method = element.split(':')
-            file.sub! /^#{Regexp.escape Dir.getwd}\//, ''
-            {
-                'file'   => file,
-                'line'   => line.to_i,
-                'symbol' => method ? method.match(/in `(.+)'$/)[1] : nil
-            }
-          end)
+                                      file, line, method = element.split(':')
+                                      file.sub! /^#{Regexp.escape Dir.getwd}\//, ''
+                                      {
+                                          'file'   => file,
+                                          'line'   => line.to_i,
+                                          'symbol' => method ? method.match(/in `(.+)'$/)[1] : nil
+                                      }
+                                    end)
         end
 
         it "should transmit information about the environment" do
@@ -488,7 +488,7 @@ describe Squash::Ruby do
       it "should raise failsafe errors if the failsafe handler is disabled" do
         Squash::Ruby.configure :disable_failsafe => true
         expect { Squash::Ruby.notify @exception }.to raise_error(Net::HTTPError)
-        expect(File.exist?('squash.failsafe.log')).to be_false
+        expect(File.exist?('squash.failsafe.log')).to eql(false)
       end
 
       it "should log failsafe errors to stderr if it can't log to disk" do
@@ -496,7 +496,7 @@ describe Squash::Ruby do
         stderr = []
         allow($stderr).to receive(:puts) { |out| stderr << out }
         Squash::Ruby.notify @exception
-        expect(File.exist?('squash.failsafe.log')).to be_false
+        expect(File.exist?('squash.failsafe.log')).to eql(false)
         expect(stderr).to include("Couldn't write to failsafe log (Is a directory); writing to stderr instead.")
       end
     end
@@ -520,148 +520,148 @@ describe Squash::Ruby do
       it "should properly tokenize JRuby Java backtraces (form 1)" do
         ::JRuby = Object.new
         allow(@exception).to receive(:backtrace).and_return(
-            ["arjdbc/jdbc/RubyJdbcConnection.java:191:in `execute'"]
-        )
+                                 ["arjdbc/jdbc/RubyJdbcConnection.java:191:in `execute'"]
+                             )
         Squash::Ruby.notify @exception
         expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
-                                                     "faulted"   => true,
-                                                     "backtrace" =>
-                                                         [{"type"   => "obfuscated",
-                                                           "file"   => "RubyJdbcConnection.java",
-                                                           "line"   => 191,
-                                                           "symbol" => "execute",
-                                                           "class"  => "arjdbc.jdbc.RubyJdbcConnection"}]}])
+                                                         "faulted"   => true,
+                                                         "backtrace" =>
+                                                             [{"type"   => "obfuscated",
+                                                               "file"   => "RubyJdbcConnection.java",
+                                                               "line"   => 191,
+                                                               "symbol" => "execute",
+                                                               "class"  => "arjdbc.jdbc.RubyJdbcConnection"}]}])
         Object.send(:remove_const, :JRuby)
       end
 
       it "should properly tokenize JRuby Java backtraces (form 2)" do
         ::JRuby = Object.new
         allow(@exception).to receive(:backtrace).and_return(
-            ["     instance_exec at org/jruby/RubyBasicObject.java:1757"]
-        )
+                                 ["     instance_exec at org/jruby/RubyBasicObject.java:1757"]
+                             )
         Squash::Ruby.notify @exception
         expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
-                                                     "faulted"   => true,
-                                                     "backtrace" =>
-                                                         [{"type"   => "obfuscated",
-                                                           "file"   => "RubyBasicObject.java",
-                                                           "line"   => 1757,
-                                                           "symbol" => "instance_exec",
-                                                           "class"  => "org.jruby.RubyBasicObject"}]}])
+                                                         "faulted"   => true,
+                                                         "backtrace" =>
+                                                             [{"type"   => "obfuscated",
+                                                               "file"   => "RubyBasicObject.java",
+                                                               "line"   => 1757,
+                                                               "symbol" => "instance_exec",
+                                                               "class"  => "org.jruby.RubyBasicObject"}]}])
         Object.send(:remove_const, :JRuby)
       end
 
       it "should properly tokenize JRuby Java backtraces (form 3)" do
         JRuby = Object.new
         allow(@exception).to receive(:backtrace).and_return(
-            ["org.jruby.RubyHash$27.visit(RubyHash.java:1646)"]
-        )
+                                 ["org.jruby.RubyHash$27.visit(RubyHash.java:1646)"]
+                             )
         Squash::Ruby.notify @exception
         expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
-                                                     "faulted"   => true,
-                                                     "backtrace" =>
-                                                         [{"type"   => "obfuscated",
-                                                           "file"   => "RubyHash.java",
-                                                           "line"   => 1646,
-                                                           "symbol" => "visit",
-                                                           "class"  => "org.jruby.RubyHash$27"}]}])
+                                                         "faulted"   => true,
+                                                         "backtrace" =>
+                                                             [{"type"   => "obfuscated",
+                                                               "file"   => "RubyHash.java",
+                                                               "line"   => 1646,
+                                                               "symbol" => "visit",
+                                                               "class"  => "org.jruby.RubyHash$27"}]}])
         Object.send(:remove_const, :JRuby)
       end
 
       it "should properly tokenize JRuby Java backtraces (native method form)" do
         JRuby = Object.new
         allow(@exception).to receive(:backtrace).and_return(
-            ["  sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)"]
-        )
+                                 ["  sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)"]
+                             )
         Squash::Ruby.notify @exception
         expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
-                                                     "faulted"   => true,
-                                                     "backtrace" =>
-                                                         [{"type"   => "java_native",
-                                                           "symbol" => "invoke0",
-                                                           "class"  => "sun.reflect.NativeMethodAccessorImpl"}]}])
+                                                         "faulted"   => true,
+                                                         "backtrace" =>
+                                                             [{"type"   => "java_native",
+                                                               "symbol" => "invoke0",
+                                                               "class"  => "sun.reflect.NativeMethodAccessorImpl"}]}])
         Object.send(:remove_const, :JRuby)
       end
 
       it "should properly tokenize JRuby Java backtraces (ASM invoker)" do
         JRuby = Object.new
         allow(@exception).to receive(:backtrace).and_return(
-            ["  org.jruby.RubyKernel$INVOKER$s$send19.call(RubyKernel$INVOKER$s$send19.gen)"]
-        )
+                                 ["  org.jruby.RubyKernel$INVOKER$s$send19.call(RubyKernel$INVOKER$s$send19.gen)"]
+                             )
         Squash::Ruby.notify @exception
         expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
-                                                     "faulted"   => true,
-                                                     "backtrace" =>
-                                                         [{"type" => "asm_invoker",
-                                                           "file" => "send19.gen"}]}])
+                                                         "faulted"   => true,
+                                                         "backtrace" =>
+                                                             [{"type" => "asm_invoker",
+                                                               "file" => "send19.gen"}]}])
         Object.send(:remove_const, :JRuby)
       end
 
       it "should properly tokenize JRuby Ruby backtraces (special form 1)" do
         JRuby = Object.new
         allow(@exception).to receive(:backtrace).and_return(
-            ["  rubyjit.ActionController::Rendering$$process_action_7EA12C1BF98F2835D4AE1311F8A1D948CBFB87DA.__file__(vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/rendering.rb:10)",
-             "  rubyjit.ActiveSupport::TaggedLogging$$tagged!_2790A33722B3CBEBECECCFF90F769EB0F50B6FF2.chained_0_ensure_1$RUBY$__ensure__(vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/tagged_logging.rb:22)"]
-        )
+                                 ["  rubyjit.ActionController::Rendering$$process_action_7EA12C1BF98F2835D4AE1311F8A1D948CBFB87DA.__file__(vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/rendering.rb:10)",
+                                  "  rubyjit.ActiveSupport::TaggedLogging$$tagged!_2790A33722B3CBEBECECCFF90F769EB0F50B6FF2.chained_0_ensure_1$RUBY$__ensure__(vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/tagged_logging.rb:22)"]
+                             )
         Squash::Ruby.notify @exception
         expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
-                                                     "faulted"   => true,
-                                                     "backtrace" =>
-                                                         [{"file"   => "vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/rendering.rb",
-                                                           "line"   => 10,
-                                                           "symbol" => "ActionController::Rendering#process_action"},
-                                                          {"file"   => "vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/tagged_logging.rb",
-                                                           "line"   => 22,
-                                                           "symbol" => "ActiveSupport::TaggedLogging#tagged!"}]}])
+                                                         "faulted"   => true,
+                                                         "backtrace" =>
+                                                             [{"file"   => "vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/rendering.rb",
+                                                               "line"   => 10,
+                                                               "symbol" => "ActionController::Rendering#process_action"},
+                                                              {"file"   => "vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/tagged_logging.rb",
+                                                               "line"   => 22,
+                                                               "symbol" => "ActiveSupport::TaggedLogging#tagged!"}]}])
         Object.send(:remove_const, :JRuby)
       end
 
       it "should properly tokenize JRuby Ruby backtraces (special form 2)" do
         JRuby = Object.new
         allow(@exception).to receive(:backtrace).and_return(
-            ["  rubyjit$AbstractController::Callbacks$$process_action!_9E31DE6CC20BF4BD4675A39AC9F969A1DDA08377$block_0$RUBY$__file__.call(rubyjit$AbstractController::Callbacks$$process_action_9E31DE6CC20BF4BD4675A39AC9F969A1DDA08377$block_0$RUBY$__file__)"]
-        )
+                                 ["  rubyjit$AbstractController::Callbacks$$process_action!_9E31DE6CC20BF4BD4675A39AC9F969A1DDA08377$block_0$RUBY$__file__.call(rubyjit$AbstractController::Callbacks$$process_action_9E31DE6CC20BF4BD4675A39AC9F969A1DDA08377$block_0$RUBY$__file__)"]
+                             )
         Squash::Ruby.notify @exception
         expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
-                                                     "faulted"   => true,
-                                                     "backtrace" =>
-                                                         [{'type'   => 'jruby_block',
-                                                           "class"  => "AbstractController::Callbacks",
-                                                           "symbol" => "process_action!"}]}])
+                                                         "faulted"   => true,
+                                                         "backtrace" =>
+                                                             [{'type'   => 'jruby_block',
+                                                               "class"  => "AbstractController::Callbacks",
+                                                               "symbol" => "process_action!"}]}])
         Object.send(:remove_const, :JRuby)
       end
 
       it "should properly tokenize JRuby Ruby backtraces (special form 3)" do
         JRuby = Object.new
         allow(@exception).to receive(:backtrace).and_return(
-            ["  rubyjit.Squash::Ruby::ControllerMethods$$_squash_around_filter!_84CA00BB277BFC0F702CBE86BC4897E3CE15B5AA.chained_0_rescue_1$RUBY$SYNTHETIC__file__(vendor/bundle/jruby/1.9/gems/squash_rails-1.1.0/lib/squash/ruby/controller_methods.rb:138)"]
-        )
+                                 ["  rubyjit.Squash::Ruby::ControllerMethods$$_squash_around_filter!_84CA00BB277BFC0F702CBE86BC4897E3CE15B5AA.chained_0_rescue_1$RUBY$SYNTHETIC__file__(vendor/bundle/jruby/1.9/gems/squash_rails-1.1.0/lib/squash/ruby/controller_methods.rb:138)"]
+                             )
         Squash::Ruby.notify @exception
         expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
-                                                     "faulted"   => true,
-                                                     "backtrace" =>
-                                                         [{"file"   => "vendor/bundle/jruby/1.9/gems/squash_rails-1.1.0/lib/squash/ruby/controller_methods.rb",
-                                                           "line"   => 138,
-                                                           "symbol" => "Squash::Ruby::ControllerMethods#_squash_around_filter!"}]}])
+                                                         "faulted"   => true,
+                                                         "backtrace" =>
+                                                             [{"file"   => "vendor/bundle/jruby/1.9/gems/squash_rails-1.1.0/lib/squash/ruby/controller_methods.rb",
+                                                               "line"   => 138,
+                                                               "symbol" => "Squash::Ruby::ControllerMethods#_squash_around_filter!"}]}])
         Object.send(:remove_const, :JRuby)
       end
 
       it "should properly tokenize JRuby Ruby backtraces (special form 4)" do
         JRuby = Object.new
         allow(@exception).to receive(:backtrace).and_return(
-            ["  rubyjit.ActionController::ImplicitRender$$send_action_9AF6F8FC466F72ECECBF8347A4DDB47F06FB9E8F.__file__(vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/implicit_render.rb)",
-             "  rubyjit.ActiveSupport::Notifications::Instrumenter$$instrument!_2E2DDD0482328008F39B59E6DE8E25217A389086.chained_0_ensure_1$RUBY$__ensure__(vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/notifications/instrumenter.rb)"]
-        )
+                                 ["  rubyjit.ActionController::ImplicitRender$$send_action_9AF6F8FC466F72ECECBF8347A4DDB47F06FB9E8F.__file__(vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/implicit_render.rb)",
+                                  "  rubyjit.ActiveSupport::Notifications::Instrumenter$$instrument!_2E2DDD0482328008F39B59E6DE8E25217A389086.chained_0_ensure_1$RUBY$__ensure__(vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/notifications/instrumenter.rb)"]
+                             )
         Squash::Ruby.notify @exception
         expect(JSON.parse(@body)['backtraces']).to eql([{"name"      => "Active Thread/Fiber",
-                                                     "faulted"   => true,
-                                                     "backtrace" =>
-                                                         [{"file"   => "vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/implicit_render.rb",
-                                                           "type"   => 'jruby_noline',
-                                                           "symbol" => "ActionController::ImplicitRender#send_action"},
-                                                          {"file"   => "vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/notifications/instrumenter.rb",
-                                                           "type"   => 'jruby_noline',
-                                                           "symbol" => "ActiveSupport::Notifications::Instrumenter#instrument!"}]}])
+                                                         "faulted"   => true,
+                                                         "backtrace" =>
+                                                             [{"file"   => "vendor/bundle/jruby/1.9/gems/actionpack-3.2.12/lib/action_controller/metal/implicit_render.rb",
+                                                               "type"   => 'jruby_noline',
+                                                               "symbol" => "ActionController::ImplicitRender#send_action"},
+                                                              {"file"   => "vendor/bundle/jruby/1.9/gems/activesupport-3.2.12/lib/active_support/notifications/instrumenter.rb",
+                                                               "type"   => 'jruby_noline',
+                                                               "symbol" => "ActiveSupport::Notifications::Instrumenter#instrument!"}]}])
         Object.send(:remove_const, :JRuby)
       end
     end
@@ -679,10 +679,10 @@ describe Squash::Ruby do
           raise ArgumentError, "sploops"
         end
       rescue => err
-        expect(err.send(:instance_variable_get, :@_squash_do_not_report)).to be_true
+        expect(err.send(:instance_variable_get, :@_squash_do_not_report)).to eql(true)
         raised = true
       end
-      expect(raised).to be_true
+      expect(raised).to eql(true)
     end
 
     it "should not report exceptions of the given classes" do
@@ -692,10 +692,10 @@ describe Squash::Ruby do
           raise RangeError, "sploops"
         end
       rescue RangeError => err
-        expect(err.send(:instance_variable_get, :@_squash_do_not_report)).to be_true
+        expect(err.send(:instance_variable_get, :@_squash_do_not_report)).to eql(true)
         raised = true
       end
-      expect(raised).to be_true
+      expect(raised).to eql(true)
     end
 
     it "should report exceptions that are superclasses of the given classes" do
@@ -705,10 +705,10 @@ describe Squash::Ruby do
           raise "sploops"
         end
       rescue StandardError => err
-        expect(err.send(:instance_variable_get, :@_squash_do_not_report)).to be_false
+        expect(err.send(:instance_variable_get, :@_squash_do_not_report)).to be_falsey
         raised = true
       end
-      expect(raised).to be_true
+      expect(raised).to eql(true)
     end
 
     it "should not report exceptions that are subclasses of the given classes" do
@@ -721,7 +721,7 @@ describe Squash::Ruby do
         expect(err.send(:instance_variable_get, :@_squash_do_not_report)).to be_nil
         raised = true
       end
-      expect(raised).to be_true
+      expect(raised).to eql(true)
     end
   end
 
@@ -750,7 +750,7 @@ describe Squash::Ruby do
         expect(err.send(:instance_variable_get, :@new_data)).to eql('baz')
         raised = true
       end
-      expect(raised).to be_true
+      expect(raised).to eql(true)
     end
   end
 
@@ -836,17 +836,17 @@ describe Squash::Ruby do
 
     it "should POST a notification to the deploy endpoint" do
       http = double('HTTP')
-      expect(http).to receive(:request).once.with { |request|
+      expect(http).to receive(:request).once do |request|
         expect(JSON.parse(request.body)).to eql(
-                                            'project'     => {'api_key' => 'foobar'},
-                                            'environment' => {'name' => 'development'},
-                                            'deploy'      => {
-                                                'deployed_at' => Time.now.to_s,
-                                                'revision'    => 'abc123',
-                                                'hostname'    => 'myhost.local'
-                                            }
-                                        )
-      }.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
+                                                'project'     => {'api_key' => 'foobar'},
+                                                'environment' => {'name' => 'development'},
+                                                'deploy'      => {
+                                                    'deployed_at' => Time.now.to_s,
+                                                    'revision'    => 'abc123',
+                                                    'hostname'    => 'myhost.local'
+                                                }
+                                            )
+      end.and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
 
       mock = double('Net::HTTP')
       expect(Net::HTTP).to receive(:new).once.with('test.host', 80).and_return(mock)
@@ -924,6 +924,10 @@ describe Squash::Ruby do
     before :each do
       FakeFS.activate!
       FakeFS::FileSystem.clear
+
+      path = File.absolute_path(File.join(File.dirname(__FILE__), '../'))
+      FileUtils.mkdir_p path
+      Dir.chdir path
     end
     after(:each) { FakeFS.deactivate! }
 
