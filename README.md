@@ -37,9 +37,9 @@ Add the Squash client to your Gemfile with
 project you are recording exceptions for:
 
 ```` ruby
-Squash::Ruby.configure :api_key => 'YOUR_API_KEY',
-                       :api_host => 'https://your.squash.host',
-                       :environment => 'production'
+Squash::Ruby.configure api_key: 'YOUR_API_KEY',
+                       api_host: 'https://your.squash.host',
+                       environment: 'production'
 ````
 
 To use Squash to manage your exceptions, place a `begin::rescue` statement at
@@ -85,7 +85,7 @@ You can also add user data using the {Squash::Ruby.add_user_data} method:
 
 ```` ruby
 input = gets
-Squash::Ruby.add_user_data(:input => input) do
+Squash::Ruby.add_user_data(input: input) do
   process_input # may raise an exception
 end
 ````
@@ -97,7 +97,7 @@ data directly in the exception constructor:
 require 'squash/ruby/exception_additions'
 
 def process_value(value)
-  raise ArgumentError.new("value must be a number", :value => value) unless value.kind_of?(Fixnum)
+  raise ArgumentError.new("value must be a number", value: value) unless value.kind_of?(Fixnum)
   # [...]
 end
 ````
@@ -111,7 +111,7 @@ require 'squash/ruby/exception_additions'
 begin
   do_something_with_input(input)
 rescue ArgumentError => err
-  err.user_data :input => input
+  err.user_data input: input
   raise # assumed that Squash::Ruby.notify is called somewhere further up in the stack
 end
 ````
@@ -205,7 +205,7 @@ options override `repository_root`.
   client libraries (e.g., Squash Rails client); an example:
 
 ```` ruby
-Squash::Ruby.configure :ignored_exception_procs => lambda do |exception, user_data|
+Squash::Ruby.configure ignored_exception_procs: lambda do |exception, user_data|
   exception.kind_of?(ActiveRecord::RecordNotFound) && user_data[:headers]['X-Testing'].blank?
 end
 ````

@@ -21,7 +21,7 @@ describe Squash::Ruby do
   before :each do
     # reset configuration
     Squash::Ruby.instance_variable_set :@configuration, nil
-    Squash::Ruby.configure :api_key => 'foobar', :environment => 'test', :api_host => 'http://test.host'
+    Squash::Ruby.configure api_key: 'foobar', environment: 'test', api_host: 'http://test.host'
 
     # nab an exception
     begin
@@ -32,10 +32,10 @@ describe Squash::Ruby do
   end
 
   describe '.notify' do
-    before(:each) { Squash::Ruby.configure :repository_root => File.join(File.dirname(__FILE__), '..') }
+    before(:each) { Squash::Ruby.configure repository_root: File.join(File.dirname(__FILE__), '..') }
 
     context "[Squash disabled]" do
-      before(:each) { Squash::Ruby.configure :disabled => true }
+      before(:each) { Squash::Ruby.configure disabled: true }
 
       it "should return false" do
         expect(Squash::Ruby).not_to receive(:http_transmit)
@@ -43,14 +43,14 @@ describe Squash::Ruby do
       end
 
       it "should log the error if exception_behavior_when_disabled is set to log" do
-        Squash::Ruby.configure :exception_behavior_when_disabled => 'log'
+        Squash::Ruby.configure exception_behavior_when_disabled: 'log'
         expect(Squash::Ruby).to receive(:failsafe_log).once.with('[Squash::Ruby.notify]', a_string_starting_with("Exception raised: Sploops!"))
         allow(Squash::Ruby).to receive(:failsafe_log)
         Squash::Ruby.notify @exception
       end
 
       it "should raise the error if exception_behavior_when_disabled is set to raise" do
-        Squash::Ruby.configure :exception_behavior_when_disabled => 'raise'
+        Squash::Ruby.configure exception_behavior_when_disabled: 'raise'
         expect { Squash::Ruby.notify @exception }.to raise_error("Sploops!")
       end
     end
@@ -66,12 +66,12 @@ describe Squash::Ruby do
     end
 
     it "should raise an exception if the API key is not configured" do
-      Squash::Ruby.configure :api_key => nil
+      Squash::Ruby.configure api_key: nil
       expect { Squash::Ruby.notify @exception }.to raise_error(/api_key/)
     end
 
     it "should raise an exception if the environment is not configured" do
-      Squash::Ruby.configure :environment => nil
+      Squash::Ruby.configure environment: nil
       expect { Squash::Ruby.notify @exception }.to raise_error(/environment/)
     end
 
@@ -120,14 +120,14 @@ describe Squash::Ruby do
       ['ArgumentError', %w( ArgumentError ), '::ArgumentError', 'StandardError', ArgumentError].each do |klass|
         context "[ignored exception = #{klass.inspect}]" do
           it "should return true if the exception is ignored because of the ignored-exceptions configuration" do
-            Squash::Ruby.configure :ignored_exception_classes => klass
+            Squash::Ruby.configure ignored_exception_classes: klass
             expect(Squash::Ruby).not_to receive(:http_transmit)
             expect(Squash::Ruby.notify(@exception)).to eql(false)
           end
 
           if klass.kind_of?(String)
             it "should return true if the exception is ignored because of the ignored-exception-messages configuration (string)" do
-              Squash::Ruby.configure :ignored_exception_messages => {klass => 'oo'}
+              Squash::Ruby.configure ignored_exception_messages: {klass => 'oo'}
               expect(Squash::Ruby).not_to receive(:http_transmit)
               expect(Squash::Ruby.notify(@exception)).to eql(false)
             end
@@ -136,17 +136,17 @@ describe Squash::Ruby do
       end
 
       it "should return true if the exception is ignored because of the ignored-exception-messages configuration (regexp)" do
-        Squash::Ruby.configure :ignored_exception_messages => {'ArgumentError' => /oo/}
+        Squash::Ruby.configure ignored_exception_messages: {'ArgumentError' => /oo/}
         expect(Squash::Ruby).not_to receive(:http_transmit)
         expect(Squash::Ruby.notify(@exception)).to eql(false)
       end
 
       it "should return true if the exception is ignored because of the ignored-exception-procs configuration" do
-        Squash::Ruby.configure :ignored_exception_procs => lambda { |error, user_data| error.kind_of?(ArgumentError) && user_data[:foo] == 'bar' }
+        Squash::Ruby.configure ignored_exception_procs: lambda { |error, user_data| error.kind_of?(ArgumentError) && user_data[:foo] == 'bar' }
 
         expect(Squash::Ruby).to receive(:http_transmit).once
-        expect(Squash::Ruby.notify(@exception, :foo => 'bar')).to eql(false)
-        expect(Squash::Ruby.notify(@exception, :foo => 'baz')).to eql(true)
+        expect(Squash::Ruby.notify(@exception, foo: 'bar')).to eql(false)
+        expect(Squash::Ruby.notify(@exception, foo: 'baz')).to eql(true)
       end
     end
 
@@ -155,19 +155,19 @@ describe Squash::Ruby do
         expect(Squash::Ruby).to receive(:failsafe_handler) do |_, error|
           expect(error.to_s).to include('bt')
         end
-        Squash::Ruby.notify @exception, :bt => 'foo'
+        Squash::Ruby.notify @exception, bt: 'foo'
       end
 
       it "should raise an error if the user data contains :mesg" do
         expect(Squash::Ruby).to receive(:failsafe_handler) do |_, error|
           expect(error.to_s).to include('mesg')
         end
-        Squash::Ruby.notify @exception, :mesg => 'foo'
+        Squash::Ruby.notify @exception, mesg: 'foo'
       end
     end
 
     describe "[valueify]" do
-      before(:each) { Squash::Ruby.configure :disable_failsafe => true }
+      before(:each) { Squash::Ruby.configure disable_failsafe: true }
 
       it "should convert variables to complex value hashes" do
         yaml = (defined?(JRuby) && RUBY_VERSION >= '1.9.0') ? "--- !ruby/regexp '/Hello, world!/'\n" : "--- !ruby/regexp /Hello, world!/\n"
@@ -233,7 +233,7 @@ describe Squash::Ruby do
       end
 
       context '[max_variable_size set]' do
-        before(:each) { Squash::Ruby.configure :max_variable_size => 10 }
+        before(:each) { Squash::Ruby.configure max_variable_size: 10 }
 
         it "should filter large values" do
           tos = (RUBY_VERSION < '1.9.0') ? '123456' : '["123456"]'
@@ -288,9 +288,9 @@ describe Squash::Ruby do
 
     context "[http_transmit]" do
       before(:each) do
-        Squash::Ruby.configure :api_host         => 'https://squash.example.com',
-                               :transmit_timeout => 15,
-                               :disable_failsafe => true
+        Squash::Ruby.configure api_host:         'https://squash.example.com',
+                               transmit_timeout: 15,
+                               disable_failsafe: true
       end
 
       it "should transmit to the API endpoint" do
@@ -311,7 +311,7 @@ describe Squash::Ruby do
       end
 
       it "should support the http_proxy environment variable" do
-        Squash::Ruby.configure :api_host => 'http://squash.example.com'
+        Squash::Ruby.configure api_host: 'http://squash.example.com'
 
         http_proxy        = ENV['http_proxy']
         ENV['http_proxy'] = 'proxy.example.com'
@@ -333,7 +333,7 @@ describe Squash::Ruby do
       end
 
       it "should support the https_proxy environment variable" do
-        Squash::Ruby.configure :api_host => 'https://squash.example.com'
+        Squash::Ruby.configure api_host: 'https://squash.example.com'
 
         http_proxy         = ENV['https_proxy']
         ENV['https_proxy'] = 'proxy.example.com'
@@ -355,7 +355,7 @@ describe Squash::Ruby do
       end
 
       it "should support the no_proxy environment variable" do
-        Squash::Ruby.configure :api_host => 'http://squash.example.com'
+        Squash::Ruby.configure api_host: 'http://squash.example.com'
 
         http_proxy        = ENV['http_proxy']
         no_proxy          = ENV['no_proxy']
@@ -380,7 +380,7 @@ describe Squash::Ruby do
       end
 
       it "should ignore inapplicable no_proxy values" do
-        Squash::Ruby.configure :api_host => 'http://squash.example.com'
+        Squash::Ruby.configure api_host: 'http://squash.example.com'
 
         http_proxy        = ENV['http_proxy']
         no_proxy          = ENV['no_proxy']
@@ -418,7 +418,7 @@ describe Squash::Ruby do
         allow(mock).to receive(:use_ssl=)
         expect(mock).to receive(:start).once.and_yield(http)
 
-        Squash::Ruby.configure :timeout_protection => proc { |timeout, &block| block.call }
+        Squash::Ruby.configure timeout_protection: proc { |timeout, &block| block.call }
         expect(Timeout).not_to receive(:timeout)
 
         Squash::Ruby.notify @exception
@@ -441,7 +441,7 @@ describe Squash::Ruby do
           allow(mock).to receive(:read_timeout=)
           allow(mock).to receive(:use_ssl=)
 
-          Squash::Ruby.notify @exception, :custom_data => 'barfoo'
+          Squash::Ruby.notify @exception, custom_data: 'barfoo'
           @json = JSON.parse(@body)
         end
 
@@ -501,7 +501,7 @@ describe Squash::Ruby do
       end
 
       it "should raise failsafe errors if the failsafe handler is disabled" do
-        Squash::Ruby.configure :disable_failsafe => true
+        Squash::Ruby.configure disable_failsafe: true
         expect { Squash::Ruby.notify @exception }.to raise_error(Net::HTTPError)
         expect(File.exist?('squash.failsafe.log')).to eql(false)
       end
@@ -742,23 +742,23 @@ describe Squash::Ruby do
 
   describe '.add_user_data' do
     it "should raise an error if not passed a block" do
-      expect { Squash::Ruby.add_user_data(:foo => 'bar') }.to raise_error(ArgumentError)
+      expect { Squash::Ruby.add_user_data(foo: 'bar') }.to raise_error(ArgumentError)
     end
 
     context "[check_user_data]" do
       it "should raise an error if the user data contains :bt" do
-        expect { Squash::Ruby.add_user_data(:bt => 'bar') { 1 } }.to raise_error(ArgumentError)
+        expect { Squash::Ruby.add_user_data(bt: 'bar') { 1 } }.to raise_error(ArgumentError)
       end
 
       it "should raise an error if the user data contains :mesg" do
-        expect { Squash::Ruby.add_user_data(:mesg => 'bar') { 1 } }.to raise_error(ArgumentError)
+        expect { Squash::Ruby.add_user_data(mesg: 'bar') { 1 } }.to raise_error(ArgumentError)
       end
     end
 
     it "should add the user data to an exception raised in the block" do
       raised = false
       begin
-        Squash::Ruby.add_user_data(:new_data => 'baz') do
+        Squash::Ruby.add_user_data(new_data: 'baz') do
           raise "sploops"
         end
       rescue StandardError => err
@@ -782,9 +782,9 @@ describe Squash::Ruby do
     end
 
     it "should report but not raise any exceptions if called with only options" do
-      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(ArgumentError), :foo => 'bar')
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(ArgumentError), foo: 'bar')
       expect do
-        Squash::Ruby.fail_silently(:foo => 'bar') { raise ArgumentError, "sploops" }
+        Squash::Ruby.fail_silently(foo: 'bar') { raise ArgumentError, "sploops" }
       end.not_to raise_error
     end
 
@@ -801,9 +801,9 @@ describe Squash::Ruby do
     end
 
     it "should allow options" do
-      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(RangeError), :foo => 'bar')
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(RangeError), foo: 'bar')
       expect do
-        Squash::Ruby.fail_silently(RangeError, :foo => 'bar') { raise RangeError, "sploops" }
+        Squash::Ruby.fail_silently(RangeError, foo: 'bar') { raise RangeError, "sploops" }
       end.not_to raise_error
     end
 
@@ -824,7 +824,7 @@ describe Squash::Ruby do
 
   describe '.configure' do
     it "should set configuration values" do
-      Squash::Ruby.configure :custom => 'config'
+      Squash::Ruby.configure custom: 'config'
       expect(Squash::Ruby.send(:configuration, :custom)).to eql('config')
     end
 
@@ -834,8 +834,8 @@ describe Squash::Ruby do
     end
 
     it "should merge new values in with existing values" do
-      Squash::Ruby.configure :custom => 'config', :custom2 => 'config2'
-      Squash::Ruby.configure :custom => 'confignew', :custom3 => 'config3'
+      Squash::Ruby.configure custom: 'config', custom2: 'config2'
+      Squash::Ruby.configure custom: 'confignew', custom3: 'config3'
       expect(Squash::Ruby.send(:configuration, :custom)).to eql('confignew')
       expect(Squash::Ruby.send(:configuration, :custom2)).to eql('config2')
       expect(Squash::Ruby.send(:configuration, :custom3)).to eql('config3')
@@ -844,7 +844,7 @@ describe Squash::Ruby do
 
   describe ".notify_deploy" do
     it "should do nothing if Squash is disabled" do
-      Squash::Ruby.configure :disabled => true
+      Squash::Ruby.configure disabled: true
       expect(Squash::Ruby).not_to receive :http_transmit
       Squash::Ruby.notify_deploy 'development', 'abc123', 'myhost.local'
     end
@@ -907,10 +907,10 @@ describe Squash::Ruby do
 
   describe ".record" do
     it "should accept an exception class, message, and options" do
-      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(ArgumentError), :foo => 'bar') do |exc, *other|
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(ArgumentError), foo: 'bar') do |exc, *other|
         expect(exc.to_s).to eql('foobar')
       end
-      Squash::Ruby.record ArgumentError, "foobar", :foo => 'bar'
+      Squash::Ruby.record ArgumentError, "foobar", foo: 'bar'
     end
 
     it "should accept an exception class and message" do
@@ -921,10 +921,10 @@ describe Squash::Ruby do
     end
 
     it "should accept a message and options" do
-      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(StandardError), :foo => 'bar') do |exc, *other|
+      expect(Squash::Ruby).to receive(:notify).once.with(an_instance_of(StandardError), foo: 'bar') do |exc, *other|
         expect(exc.to_s).to eql('foobar')
       end
-      Squash::Ruby.record "foobar", :foo => 'bar'
+      Squash::Ruby.record "foobar", foo: 'bar'
     end
 
     it "should accept a message" do
@@ -949,26 +949,26 @@ describe Squash::Ruby do
     context "[revision file specified]" do
       it "should return the contents of the revision file" do
         File.open('test_file', 'w') { |f| f.puts 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
-        Squash::Ruby.configure :revision_file => 'test_file'
+        Squash::Ruby.configure revision_file: 'test_file'
         expect(Squash::Ruby.current_revision).to eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
       end
 
       it "should raise an exception for an improperly-formatted revision file" do
         File.open('test_file', 'w') { |f| f.puts 'halp!' }
-        Squash::Ruby.configure :revision_file => 'test_file'
+        Squash::Ruby.configure revision_file: 'test_file'
         expect { Squash::Ruby.current_revision }.to raise_error(/Unknown Git revision/)
       end
     end
 
     context "[revision specified]" do
       it "should return the revision" do
-        Squash::Ruby.configure :revision      => 'cb586586d2882ebfb5e892c8fc558ada8d2faf95',
-                               :revision_file => 'test_file'
+        Squash::Ruby.configure revision:      'cb586586d2882ebfb5e892c8fc558ada8d2faf95',
+                               revision_file: 'test_file'
         expect(Squash::Ruby.current_revision).to eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
       end
 
       it "should raise an exception for an improperly-formatted revision" do
-        Squash::Ruby.configure :revision => 'hello'
+        Squash::Ruby.configure revision: 'hello'
         expect { Squash::Ruby.current_revision }.to raise_error(/Unknown Git revision/)
       end
     end
@@ -976,15 +976,15 @@ describe Squash::Ruby do
     context "[no revision file specified]" do
       it "should use .git/HEAD if it is not a mirrored repository" do
         FileUtils.mkdir_p '/tmp/.git'
-        Squash::Ruby.configure :repository_root => '/tmp/'
+        Squash::Ruby.configure repository_root: '/tmp/'
         File.open('/tmp/.git/HEAD', 'w') { |f| f.puts 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
         expect(Squash::Ruby.current_revision).to eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
       end
 
       it "should use HEAD if it is a mirrored repository" do
         FileUtils.mkdir_p '/tmp'
-        Squash::Ruby.configure :mirrored_repository => true
-        Squash::Ruby.configure :repository_root => '/tmp/'
+        Squash::Ruby.configure mirrored_repository: true
+        Squash::Ruby.configure repository_root: '/tmp/'
         File.open('/tmp/HEAD', 'w') { |f| f.puts 'cb586586d2882ebfb5e892c8fc558ada8d2faf95' }
         expect(Squash::Ruby.current_revision).to eql('cb586586d2882ebfb5e892c8fc558ada8d2faf95')
       end

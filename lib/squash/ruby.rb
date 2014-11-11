@@ -31,17 +31,17 @@ module Squash
     EXCEPTION_RESERVED_IVARS = %W( mesg bt )
     # Default values for different configuration variables.
     CONFIGURATION_DEFAULTS   = {
-        :notify_path                => "/api/1.0/notify",
-        :deploy_path                => "/api/1.0/deploy",
-        :open_timeout               => 15,
-        :transmit_timeout           => 15,
-        :ignored_exception_classes  => [],
-        :ignored_exception_messages => {},
-        :ignored_exception_procs    => [],
-        :failsafe_log               => "squash.failsafe.log",
-        :repository_root            => Dir.getwd,
-        :project_root               => Dir.getwd,
-        :timeout_protection         => proc { |timeout, &block|
+        notify_path:                "/api/1.0/notify",
+        deploy_path:                "/api/1.0/deploy",
+        open_timeout:               15,
+        transmit_timeout:           15,
+        ignored_exception_classes:  [],
+        ignored_exception_messages: {},
+        ignored_exception_procs:    [],
+        failsafe_log:               "squash.failsafe.log",
+        repository_root:            Dir.getwd,
+        project_root:               Dir.getwd,
+        timeout_protection:         proc { |timeout, &block|
                                          timeout_protection(timeout, &block)
                                        },
     }
@@ -415,9 +415,9 @@ module Squash
     private
 
     def self.http_options(uri)
-      options = {:use_ssl      => uri.scheme == 'https',
-                 :open_timeout => configuration(:transmit_timeout),
-                 :read_timeout => configuration(:transmit_timeout)}
+      options = {use_ssl:      uri.scheme == 'https',
+                 open_timeout: configuration(:transmit_timeout),
+                 read_timeout: configuration(:transmit_timeout)}
       options[:verify_mode] = OpenSSL::SSL::VERIFY_NONE if configuration(:skip_ssl_verification)
       options
     end

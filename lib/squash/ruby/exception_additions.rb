@@ -16,7 +16,7 @@
 # to an exception at the time of the raise.
 #
 # @example
-#   raise ArgumentError.new("value must be a number", :value => value) unless value.kind_of?(Fixnum)
+#   raise ArgumentError.new("value must be a number", value: value) unless value.kind_of?(Fixnum)
 
 class Exception
 
