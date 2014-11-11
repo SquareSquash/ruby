@@ -155,6 +155,11 @@ keys:
   stripped from backtrace lines. By default it's set to the working directory.
 * `mirrored_repository`: Set this option to be true if your repository root is a
   mirrored Git repository.
+* `exception_behavior_when_disabled`: Set this option to customize Squash's
+  behavior when an exception is raised in an environment where Squash is
+  disabled (typically development and test). Values are `ignore` (default):
+  exception is ignored; `raise`: exception is raised; and `log`: exception is
+  logged at the error level to the Rails log.
 
 ### Revision Information
 

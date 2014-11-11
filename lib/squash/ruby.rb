@@ -54,7 +54,9 @@ module Squash
     # constant to include Rails-specific fields, for example.
     TOP_LEVEL_USER_DATA      = []
 
-    # Notifies Squash of an exception.
+    # Notifies Squash of an exception. The behavior of this method when Squash
+    # is disabled is dependent on the `exception_behavior_when_disabled`
+    # configuration option.
     #
     # @param [Object] exception The exception. Must at least duck-type an
     #   `Exception` subclass.
@@ -66,7 +68,18 @@ module Squash
     #   {.configure}).
 
     def self.notify(exception, user_data={})
-      unless configuration(:disabled)
+      if configuration(:disabled)
+        case configuration(:exception_behavior_when_disabled)
+          when 'log', :log
+            failsafe_log '[Squash::Ruby.notify]', "Exception raised: #{exception.to_s}\n" +
+                                                    exception.backtrace.map { |l| "  #{l}" }.join("\n")
+          when 'raise', :raise
+            raise exception
+          else
+            # ignore
+        end
+        return false
+      else
         raise "The :api_key configuration is required" unless configuration(:api_key)
         raise "The :api_host configuration is required" unless configuration(:api_host)
         raise "The :environment configuration is required" unless configuration(:environment)
@@ -182,6 +195,10 @@ module Squash
     #   Squash. This allows you to ensure that a non-critical block of code
     #   does not halt your application while still receiving exception
     #   notifications in Squash.
+    #
+    #   The behavior of this method when Squash is disabled is dependent on the
+    #   `exception_behavior_when_disabled` configuration option.
+    #
     #   @param [Array<Class>] exception_classes A list of exception classes to
     #     report silently. Exceptions _not_ of these classes (or their
     #     subclasses) will raise (and presumably be handled by Squash elsewhere

@@ -34,10 +34,25 @@ describe Squash::Ruby do
   describe '.notify' do
     before(:each) { Squash::Ruby.configure :repository_root => File.join(File.dirname(__FILE__), '..') }
 
-    it "should return false if Squash is disabled" do
-      Squash::Ruby.configure :disabled => true
-      expect(Squash::Ruby).not_to receive(:http_transmit)
-      expect(Squash::Ruby.notify(@exception)).to eql(false)
+    context "[Squash disabled]" do
+      before(:each) { Squash::Ruby.configure :disabled => true }
+
+      it "should return false" do
+        expect(Squash::Ruby).not_to receive(:http_transmit)
+        expect(Squash::Ruby.notify(@exception)).to eql(false)
+      end
+
+      it "should log the error if exception_behavior_when_disabled is set to log" do
+        Squash::Ruby.configure :exception_behavior_when_disabled => 'log'
+        expect(Squash::Ruby).to receive(:failsafe_log).once.with('[Squash::Ruby.notify]', a_string_starting_with("Exception raised: Sploops!"))
+        allow(Squash::Ruby).to receive(:failsafe_log)
+        Squash::Ruby.notify @exception
+      end
+
+      it "should raise the error if exception_behavior_when_disabled is set to raise" do
+        Squash::Ruby.configure :exception_behavior_when_disabled => 'raise'
+        expect { Squash::Ruby.notify @exception }.to raise_error("Sploops!")
+      end
     end
 
     it "should return false if the exception has no backtrace" do
