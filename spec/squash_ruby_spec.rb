@@ -314,7 +314,7 @@ describe Squash::Ruby do
         Squash::Ruby.configure api_host: 'http://squash.example.com'
 
         http_proxy        = ENV['http_proxy']
-        ENV['http_proxy'] = 'proxy.example.com'
+        ENV['http_proxy'] = 'http://proxy.example.com'
 
         http = double('Net:HTTP')
         expect(http).to receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
@@ -336,7 +336,7 @@ describe Squash::Ruby do
         Squash::Ruby.configure api_host: 'https://squash.example.com'
 
         http_proxy         = ENV['https_proxy']
-        ENV['https_proxy'] = 'proxy.example.com'
+        ENV['https_proxy'] = 'https://proxy.example.com'
 
         http = double('Net:HTTP')
         expect(http).to receive(:request).and_return(Net::HTTPSuccess.new('1.1', 200, 'OK'))
@@ -384,7 +384,7 @@ describe Squash::Ruby do
 
         http_proxy        = ENV['http_proxy']
         no_proxy          = ENV['no_proxy']
-        ENV['http_proxy'] = 'proxy.example.com'
+        ENV['http_proxy'] = 'http://proxy.example.com'
         ENV['no_proxy']   = '.foo.com,.bar.com'
 
         http = double('Net:HTTP')

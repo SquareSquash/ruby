@@ -326,16 +326,16 @@ module Squash
       uri = URI.parse(url)
 
       no_proxy = if ENV['no_proxy']
-                   ENV['no_proxy'].split(',').any? { |ext| uri.host[-ext.length, ext.length] == ext }
+                   ENV['no_proxy'].split(',').map(&:strip).any? { |ext| uri.host[-ext.length, ext.length] == ext }
                  else
                    false
                  end
 
       http = if uri.scheme == 'https' && ENV['https_proxy'] && !no_proxy
-               proxy = URI.parse("https://#{ENV['https_proxy']}")
+               proxy = URI.parse(ENV['https_proxy'])
                Net::HTTP::Proxy(proxy.host, proxy.port, proxy.user, proxy.password).new(uri.host, uri.port)
              elsif uri.scheme == 'http' && ENV['http_proxy'] && !no_proxy
-               proxy = URI.parse("http://#{ENV['http_proxy']}")
+               proxy = URI.parse(ENV['http_proxy'])
                Net::HTTP::Proxy(proxy.host, proxy.port, proxy.user, proxy.password).new(uri.host, uri.port)
              else
                Net::HTTP.new(uri.host, uri.port)
