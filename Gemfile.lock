@@ -1,8 +1,8 @@
 GIT
-  remote: git://github.com/technicalpickles/jeweler.git
-  revision: ac3d1f99cc28fba1588851ed1b2f613429a6eb09
+  remote: git://github.com/flajann2/juwelier.git
+  revision: 78d06764cb20bfad1b8ff61c420843c02dfd6c2c
   specs:
-    jeweler (2.0.1)
+    juwelier (2.1.0)
       builder
       bundler (>= 1.0)
       git (>= 1.2.5)
@@ -34,7 +34,6 @@ GEM
     hashie (3.4.3)
     highline (1.7.8)
     json (1.8.3)
-    json (1.8.3-java)
     jwt (1.5.1)
     mini_portile2 (2.0.0)
     multi_json (1.11.2)
@@ -42,7 +41,6 @@ GEM
     multipart-post (2.0.0)
     nokogiri (1.6.7.2)
       mini_portile2 (~> 2.0.0.rc2)
-    nokogiri (1.6.7.2-java)
     oauth2 (1.1.0)
       faraday (>= 0.8, < 0.10)
       jwt (~> 1.0, < 1.5.2)
@@ -68,17 +66,15 @@ GEM
       rspec-support (~> 3.4.0)
     rspec-support (3.4.1)
     thread_safe (0.3.5)
-    thread_safe (0.3.5-java)
     yard (0.8.7.6)
 
 PLATFORMS
-  java
   ruby
 
 DEPENDENCIES
   fakefs
-  jeweler!
   json
+  juwelier!
   redcarpet
   rspec
   yard

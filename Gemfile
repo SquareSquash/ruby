@@ -12,5 +12,5 @@ group :development do
   gem 'redcarpet', platform: :mri
 
   # DEVELOPMENT
-  gem 'jeweler', github: 'technicalpickles/jeweler'
+  gem 'juwelier', github: 'flajann2/juwelier'
 end
