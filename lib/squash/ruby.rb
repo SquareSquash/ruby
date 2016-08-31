@@ -727,7 +727,7 @@ module Squash
 
     # @private
     def self.unroll(exception)
-      if exception.respond_to?(:original_exception)
+      if exception.respond_to?(:original_exception) && exception.original_exception
         [exception.original_exception, [exception]]
       else
         [exception, nil]
