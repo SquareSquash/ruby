@@ -425,7 +425,7 @@ describe Squash::Ruby do
       end
 
       context "[request body]" do
-        before :each do
+        def send_exception
           @exception.send :instance_variable_set, :@custom_ivar, 'foobar'
 
           http = double('Net:HTTP')
@@ -446,6 +446,7 @@ describe Squash::Ruby do
         end
 
         it "should transmit information about the exception" do
+          send_exception
           expect(@json).to include('class_name')
           expect(@json).to include('message')
           expect(@json).to include('backtraces')
@@ -457,6 +458,7 @@ describe Squash::Ruby do
         end
 
         it "should properly tokenize and normalize backtraces" do
+          send_exception
           bt         = @exception.backtrace.reject { |line| line.include?('.java') }
           serialized = @json['backtraces'].first['backtrace'].reject { |elem| elem['type'] }
           expect(serialized).to eql(bt.map do |element|
@@ -471,17 +473,29 @@ describe Squash::Ruby do
         end
 
         it "should transmit information about the environment" do
+          send_exception
           expect(@json).to include('pid')
           expect(@json).to include('hostname')
           expect(@json['env_vars']).to eql(ENV.to_hash)
           expect(@json).to include('arguments')
         end
 
+        it "should not transmit env_vars if configured to exclude them" do
+          Squash::Ruby.configure include_env: false
+          send_exception
+          expect(@json).to include('pid')
+          expect(@json).to include('hostname')
+          expect(@json['env_vars']).to eql(nil)
+          expect(@json).to include('arguments')
+        end
+
         it "should transmit the user data" do
+          send_exception
           expect(@json['user_data']).to include('custom_data')
         end
 
         it "should transmit the exception instance variables" do
+          send_exception
           expect(@json['ivars']).to include('custom_ivar')
         end
       end

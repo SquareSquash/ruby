@@ -44,6 +44,7 @@ module Squash
         timeout_protection:         proc { |timeout, &block|
                                          timeout_protection(timeout, &block)
                                        },
+        include_env:                true,
     }
     # Types that are serialized directly to JSON, rather than to a hash of
     # object information. Subclasses are not considered members of this array.
@@ -423,7 +424,12 @@ module Squash
     end
 
     def self.configuration(key)
-      (@configuration || CONFIGURATION_DEFAULTS)[key] || CONFIGURATION_DEFAULTS[key]
+      cfg = (@configuration || CONFIGURATION_DEFAULTS)
+      if cfg.key?(key)
+        cfg[key]
+      else
+        CONFIGURATION_DEFAULTS[key]
+      end
     end
 
     def self.ignored?(exception, user_data)
@@ -652,12 +658,15 @@ module Squash
 
     # @private
     def self.environment_data
-      {
+      data = {
           'pid'       => Process.pid,
           'hostname'  => Socket.gethostname,
-          'env_vars'  => ENV.inject({}) { |hsh, (k, v)| hsh[k.to_s] = valueify(v); hsh },
           'arguments' => ARGV.join(' ')
       }
+      if configuration(:include_env)
+        data['env_vars'] = ENV.inject({}) { |hsh, (k, v)| hsh[k.to_s] = valueify(v); hsh }
+      end
+      data
     end
 
     # @private
